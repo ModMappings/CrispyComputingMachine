@@ -2,23 +2,76 @@ plugins {
     id 'org.springframework.boot' version '2.2.4.RELEASE'
     id 'io.spring.dependency-management' version '1.0.9.RELEASE'
     id 'java'
+    id 'application'
 }
 
 group = 'org.modmappings'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '11'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+ext {
+    set('springCloudVersion', "Hoxton.SR1")
+}
 
 repositories {
+    mavenLocal()
     mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://files.minecraftforge.net/maven' }
 }
 
 dependencies {
+    implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
+
+    implementation 'org.modmappings.mmms:repository:0.1.0-301.g12e3fa5'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-301.g12e3fa5'
+
+    implementation 'net.minecraftforge.lex:MappingToy:1.0.700'
+    implementation 'org.ow2.asm:asm:7.2'
+    implementation 'org.ow2.asm:asm-commons:7.2'
+    implementation 'org.ow2.asm:asm-tree:7.2'
+    implementation 'org.ow2.asm:asm-util:7.2'
+    implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'net.minecraftforge:mergetool:1.0.10'
+    implementation 'net.minecraftforge:srgutils:0.2.7'
+
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    implementation 'org.springframework.boot:spring-boot-starter-quartz'
+    implementation 'org.springframework.cloud:spring-cloud-starter-task'
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot.experimental:spring-boot-starter-data-r2dbc'
+
+    implementation 'io.r2dbc:r2dbc-postgresql'
+    implementation 'org.postgresql:postgresql'
+
+    runtime 'com.h2database:h2'
+
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
         exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+
+    annotationProcessor group: 'org.springframework.boot', name: 'spring-boot-configuration-processor'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.boot.experimental:spring-boot-bom-r2dbc:0.1.0.M3'
     }
 }
 
 test {
     useJUnitPlatform()
+}
+
+application {
+    mainClassName = 'org.modmappings.crispycomputingmachine.CrispyComputingMachineApplication'
+}
+
+bootDistTar {
+    archiveVersion = ''
 }

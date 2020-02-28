@@ -7,3 +7,6 @@ assets
 development
 docu
 .gitignore
+log
+data
+working
