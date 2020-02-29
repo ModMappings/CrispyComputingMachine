@@ -1,15 +1,15 @@
-package org.modmappings.crispycomputingmachine.processors;
+package org.modmappings.crispycomputingmachine.processors.version;
 
-import net.minecraftforge.srgutils.MinecraftVersion;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.mmms.repository.repositories.core.gameversions.GameVersionRepository;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.data.domain.Pageable;
 
 import java.util.function.Function;
 
-public class ExistingMinecraftVersionFilter implements ItemProcessor<MinecraftVersion, MinecraftVersion> {
+public class ExistingMinecraftVersionFilter implements ItemProcessor<VersionsItem, VersionsItem> {
 
     private static final Logger LOGGER = LogManager.getLogger(ExistingMinecraftVersionFilter.class);
 
@@ -20,9 +20,9 @@ public class ExistingMinecraftVersionFilter implements ItemProcessor<MinecraftVe
     }
 
     @Override
-    public MinecraftVersion process(final MinecraftVersion item) throws Exception {
+    public VersionsItem process(final VersionsItem item) throws Exception {
         LOGGER.info("Checking if: " + item.toString() + " has alread been imported.");
-        final MinecraftVersion ret = gameVersionRepository.findAllBy("\\A" + item.toString().replace(".", "\\.") + "\\Z", null, null, Pageable.unpaged())
+        final VersionsItem ret = gameVersionRepository.findAllBy("\\A" + item.getId().replace(".", "\\.") + "\\Z", null, null, Pageable.unpaged())
                 .flatMapIterable(Function.identity())
                 .next()
                 .hasElement()
@@ -30,11 +30,11 @@ public class ExistingMinecraftVersionFilter implements ItemProcessor<MinecraftVe
 
         if (ret != null)
         {
-            LOGGER.info("Version: " + ret.toString() + " is new. Importing...");
+            LOGGER.info("Version: " + ret.getId() + " is new. Importing...");
         }
         else
         {
-            LOGGER.info("Version: " + item.toString() + " already exists. Skipping...");
+            LOGGER.info("Version: " + item.getId() + " already exists. Skipping...");
         }
 
         return ret;

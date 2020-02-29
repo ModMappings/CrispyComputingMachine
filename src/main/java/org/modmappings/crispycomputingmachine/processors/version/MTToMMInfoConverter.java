@@ -1,13 +1,16 @@
-package org.modmappings.crispycomputingmachine.processors;
+package org.modmappings.crispycomputingmachine.processors.version;
 
 import net.minecraftforge.srgutils.MinecraftVersion;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.crispycomputingmachine.model.mappings.*;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
 import org.springframework.batch.item.ItemProcessor;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -95,7 +98,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
 
         return new ExternalRelease(
                 item.getVersion().toString(),
-                new LinkedList<>(inputToClassMappingData.values()),
+                Date.from(Instant.from(DateTimeFormatter.ISO_ZONED_DATE_TIME.parse(item.getVersion().getReleaseTime()))), new LinkedList<>(inputToClassMappingData.values()),
                 isPreRelease(item.getVersion()), isSnapshot(item.getVersion()));
     }
 
@@ -113,9 +116,9 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         return ExternalVisibility.UNKNOWN;
     }
     
-    private static boolean isPreRelease(MinecraftVersion version)
+    private static boolean isPreRelease(VersionsItem version)
     {
-        String lower = version.toString().toLowerCase(Locale.ENGLISH);
+        String lower = version.getId().toLowerCase(Locale.ENGLISH);
 
         if ("15w14a".equals(lower)) { //2015 April Fools
             return false;
@@ -136,9 +139,9 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         }
     }
 
-    private static boolean isSnapshot(MinecraftVersion version)
+    private static boolean isSnapshot(VersionsItem version)
     {
-        String lower = version.toString().toLowerCase(Locale.ENGLISH);
+        String lower = version.getId().toLowerCase(Locale.ENGLISH);
         switch (lower) {
             case "15w14a":  //2015 April Fools
                 return true;

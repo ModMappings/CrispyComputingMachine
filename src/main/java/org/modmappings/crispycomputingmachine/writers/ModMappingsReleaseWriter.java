@@ -88,8 +88,6 @@ public class ModMappingsReleaseWriter implements ItemWriter<ExternalRelease> {
                                                                             mappableRepository,
                                                                             releaseComponentRepository
                                                                     )
-                                                            ,
-                                                            ManagementFactory.getThreadMXBean().getThreadCount()
                                                     )
                                                     .collectMap(
                                                             ClassSaveHandler::getExternalClass,
@@ -100,24 +98,21 @@ public class ModMappingsReleaseWriter implements ItemWriter<ExternalRelease> {
                                                                     saveHandlers,
                                                                     inheritanceDataRepository
                                                                     )
-                                                                            .doFirst(() -> LOGGER.info("Saving inheritance data for: " + csv.getExternalClass().getOutput())),
-                                                                    ManagementFactory.getThreadMXBean().getThreadCount()
+                                                                            .doFirst(() -> LOGGER.info("Saving inheritance data for: " + csv.getExternalClass().getOutput()))
                                                             )
                                                             .collectList()
                                                             .flatMapIterable(Function.identity())
                                                             .flatMap(csv -> csv.createAndSaveFieldData(offMapType.getId(),
                                                                     release,
                                                                     mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository)
-                                                                            .doFirst(() -> LOGGER.info("Saving field data for: " + csv.getExternalClass().getOutput())),
-                                                                    2
+                                                                            .doFirst(() -> LOGGER.info("Saving field data for: " + csv.getExternalClass().getOutput()))
                                                             )
                                                             .collectList()
                                                             .flatMapIterable(Function.identity())
                                                             .flatMap(csv -> csv.createAndSaveMethodData(offMapType.getId(),
                                                                     release,
                                                                     mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository)
-                                                                            .doFirst(() -> LOGGER.info("Saving method data for: " + csv.getExternalClass().getOutput())),
-                                                                    2
+                                                                            .doFirst(() -> LOGGER.info("Saving method data for: " + csv.getExternalClass().getOutput()))
                                                             )
                                                             .then(Mono.just(saveHandlers))
                                                     );

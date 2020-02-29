@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "importer.versions",
+      "type": "java.lang.String[]",
+      "description": "The minecraft versions to import. Leave empty to import all."
+    }
+  ]
+}

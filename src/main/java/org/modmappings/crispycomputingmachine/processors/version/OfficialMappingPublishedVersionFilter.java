@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.processors;
+package org.modmappings.crispycomputingmachine.processors.version;
 
 import net.minecraftforge.srgutils.MinecraftVersion;
 import org.apache.logging.log4j.LogManager;
@@ -10,14 +10,14 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
-public class OfficialMappingPublishedVersionFilter implements ItemProcessor<VersionsItem, MinecraftVersion> {
+public class OfficialMappingPublishedVersionFilter implements ItemProcessor<VersionsItem, VersionsItem> {
 
     private static final Logger LOGGER = LogManager.getLogger(OfficialMappingPublishedVersionFilter.class);
 
     private static final Date INITIAL_PUBLISH_DATE_OF_MAPPING = Date.from(Instant.from(DateTimeFormatter.ISO_ZONED_DATE_TIME.parse("2019-09-04T11:19:34+00:00")));
 
     @Override
-    public MinecraftVersion process(final VersionsItem item) throws Exception {
+    public VersionsItem process(final VersionsItem item) throws Exception {
         LOGGER.info("Checking if: " + item.getId() + " has a official mapping.");
 
         final Date date = Date.from(Instant.from(DateTimeFormatter.ISO_ZONED_DATE_TIME.parse(item.getReleaseTime())));
@@ -31,7 +31,7 @@ public class OfficialMappingPublishedVersionFilter implements ItemProcessor<Vers
         else
         {
             LOGGER.info("Potentially mappings are available for: " + item.toString());
-            return MinecraftVersion.from(item.getId());
+            return item;
         }
     }
 }

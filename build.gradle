@@ -27,8 +27,8 @@ repositories {
 dependencies {
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
 
-    implementation 'org.modmappings.mmms:repository:0.1.0-301.g12e3fa5'
-    implementation 'org.modmappings.mmms:er2dbc:0.1.0-301.g12e3fa5'
+    implementation 'org.modmappings.mmms:repository:0.1.0-305.gc590c51'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-305.gc590c51'
 
     implementation 'net.minecraftforge.lex:MappingToy:1.0.700'
     implementation 'org.ow2.asm:asm:7.2'

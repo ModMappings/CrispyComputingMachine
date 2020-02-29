@@ -1,5 +1,7 @@
 package org.modmappings.crispycomputingmachine.model.save;
 
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.Statement;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalClass;
@@ -20,6 +22,7 @@ import org.modmappings.mmms.repository.repositories.mapping.mappables.mappable.M
 import org.modmappings.mmms.repository.repositories.mapping.mappables.versionedmappables.VersionedMappableRepository;
 import org.modmappings.mmms.repository.repositories.mapping.mappings.mapping.MappingRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.r2dbc.core.DatabaseClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -97,7 +100,7 @@ public class ClassSaveHandler {
                 null,
                 MappableTypeDMO.CLASS,
                 null,
-                "\\A" + externalClass.getOutput() + "\\Z",
+                RegexUtils.createClassTargetingRegex(externalClass.getOutput()),
                 mappingTypeId,
                 null,
                 null,
@@ -105,6 +108,7 @@ public class ClassSaveHandler {
                 PageRequest.of(0,1)
             )
             .flatMapIterable(Function.identity())
+            .switchIfEmpty(Mono.<MappingDMO>empty().doFirst(() -> LOGGER.warn("Could not find existing mapping for: " + externalClass.getOutput())))
             .next()
             .flatMap(existingMapping -> versionedMappableRepository.findAllFor(
                     null,
@@ -119,11 +123,13 @@ public class ClassSaveHandler {
                     .flatMapIterable(Function.identity())
                     .next()
             )
+                .switchIfEmpty(Mono.<VersionedMappableDMO>empty().doFirst(() -> LOGGER.warn("Could not find versioned mappable for: " + externalClass.getOutput())))
             .flatMap(previousVersionedMappable -> mappableRepository.findById(previousVersionedMappable.getMappableId()))
             .switchIfEmpty(Mono.just(
                     new MappableDMO(Constants.SYSTEM_ID, MappableTypeDMO.CLASS)
                 )
                 .flatMap(mappableRepository::save)
+                .doFirst(() -> LOGGER.warn("Creating new Mappable for: " + externalClass.getOutput()))
             )
             .doOnNext(this::setMappable)
             .then(Mono.just(this));
@@ -230,9 +236,12 @@ public class ClassSaveHandler {
             final ReleaseComponentRepository releaseComponentRepository
     )
     {
+        DatabaseClient databaseClient;
+        databaseClient.select().from(VersionedMappableDMO.class).
+
         return Flux.fromIterable(externalClass.getFields())
                 .doOnNext(eField -> LOGGER.info("Dispatching saving of field: " + eField.getOutput() + " in " + externalClass.getOutput()))
-                .flatMap(externalField -> FieldSaveHandler.createAndRunSave(mappingTypeId, release, externalField, versionedMappable, mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository), 4)
+                .flatMap(externalField -> FieldSaveHandler.createAndRunSave(mappingTypeId, release, externalField, versionedMappable, mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository), 1)
                 .then(Mono.just(this));
     }
 
@@ -247,7 +256,7 @@ public class ClassSaveHandler {
     {
         return Flux.fromIterable(externalClass.getMethods())
                 .doOnNext(eMethod -> LOGGER.info("Dispatching saving of method: " + eMethod.getOutput() + " in " + externalClass.getOutput()))
-                .flatMap(externalMethod -> MethodSaveHandler.createAndRunSave(mappingTypeId, release, externalMethod, versionedMappable, mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository), 4)
+                .flatMap(externalMethod -> MethodSaveHandler.createAndRunSave(mappingTypeId, release, externalMethod, versionedMappable, mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository), 1)
                 .then(Mono.just(this));
     }
 

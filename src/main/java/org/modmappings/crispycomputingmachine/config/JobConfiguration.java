@@ -2,11 +2,9 @@ package org.modmappings.crispycomputingmachine.config;
 
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
-import org.modmappings.crispycomputingmachine.processors.ExistingMinecraftVersionFilter;
-import org.modmappings.crispycomputingmachine.processors.MTToMMInfoConverter;
-import org.modmappings.crispycomputingmachine.processors.MappingToyInformationExtractor;
-import org.modmappings.crispycomputingmachine.processors.OfficialMappingPublishedVersionFilter;
-import org.modmappings.crispycomputingmachine.readers.MinecraftVersionFromManifestReader;
+import org.modmappings.crispycomputingmachine.processors.*;
+import org.modmappings.crispycomputingmachine.processors.version.ExistingMinecraftVersionFilter;
+import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
 import org.modmappings.crispycomputingmachine.tasks.DeleteWorkingDirectoryTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMinecraftManifestTasklet;
 import org.modmappings.crispycomputingmachine.utils.Constants;
@@ -62,7 +60,7 @@ public class JobConfiguration {
 
     @Bean
     public Step performMinecraftVersionImport(
-            final MinecraftVersionFromManifestReader minecraftVersionFromManifestReader,
+            final ExternalVanillaMappingReader minecraftVersionFromManifestReader,
             final CompositeItemProcessor<VersionsItem, ExternalRelease> performMinecraftVersionImportProcessor,
             final ModMappingsReleaseWriter modMappingsReleaseWriter
             )
@@ -77,9 +75,9 @@ public class JobConfiguration {
     }
 
     @Bean
-    public MinecraftVersionFromManifestReader minecraftVersionFromManifestItemReader()
+    public ExternalVanillaMappingReader minecraftVersionFromManifestItemReader()
     {
-        final MinecraftVersionFromManifestReader reader = new MinecraftVersionFromManifestReader();
+        final ExternalVanillaMappingReader reader = new ExternalVanillaMappingReader();
         reader.setWorkingDirectoryResource(new FileSystemResource(Constants.WORKING_DIR));
         return reader;
     }
@@ -113,6 +111,7 @@ public class JobConfiguration {
     @Bean
     public CompositeItemProcessor<VersionsItem, ExternalRelease> performMinecraftVersionImportProcessor(
             final OfficialMappingPublishedVersionFilter officialMappingPublishedVersionFilter,
+            final ConfigurationBasedMinecraftVersionFilter configurationBasedMinecraftVersionFilter,
             final ExistingMinecraftVersionFilter existingMinecraftVersionFilter,
             final MappingToyInformationExtractor mappingToyInformationExtractor,
             final MTToMMInfoConverter mtToMMInfoConverter
@@ -120,6 +119,7 @@ public class JobConfiguration {
         final CompositeItemProcessor<VersionsItem, ExternalRelease> compositeItemProcessor = new CompositeItemProcessor<>();
         final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();
         processors.add(officialMappingPublishedVersionFilter);
+        processors.add(configurationBasedMinecraftVersionFilter);
         processors.add(existingMinecraftVersionFilter);
         processors.add(mappingToyInformationExtractor);
         processors.add(mtToMMInfoConverter);
