@@ -8,6 +8,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.*;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -15,13 +16,14 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@Component
 public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, ExternalRelease> {
 
     private static final Logger LOGGER = LogManager.getLogger(MTToMMInfoConverter.class);
 
     @Override
     public ExternalRelease process(final MappingToyData item) {
-        LOGGER.info("Converting MappingToy data to ModMappings data for version: " + item.getVersion().toString());
+        LOGGER.info("Converting MappingToy data to ModMappings data for version: " + item.getVersion().getId());
         final Map<String, ExternalClass> inputToClassMappingData = new ConcurrentHashMap<>();
 
         //Okey this processes all class to get the correct references later.
@@ -31,7 +33,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                 (e) -> {
                     final String obfName = e.getKey();
                     final MappingToyJarMetaData.ClassInfo classData = e.getValue();
-                    LOGGER.info("[" + item.getVersion().toString() + "] Creating Obf Class: " + obfName);
+                    LOGGER.info("[" + item.getVersion().getId() + "] Creating Obf Class: " + obfName);
                     inputToClassMappingData.put(
                             obfName,
                             new ExternalClass(
@@ -97,7 +99,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         );
 
         return new ExternalRelease(
-                item.getVersion().toString(),
+                item.getVersion().getId(),
                 Date.from(Instant.from(DateTimeFormatter.ISO_ZONED_DATE_TIME.parse(item.getVersion().getReleaseTime()))), new LinkedList<>(inputToClassMappingData.values()),
                 isPreRelease(item.getVersion()), isSnapshot(item.getVersion()));
     }

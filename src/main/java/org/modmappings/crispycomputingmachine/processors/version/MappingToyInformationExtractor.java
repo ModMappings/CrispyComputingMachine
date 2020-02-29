@@ -12,7 +12,9 @@ import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import java.io.File;
@@ -21,17 +23,19 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.util.*;
 
+@Component
 public class MappingToyInformationExtractor implements ItemProcessor<VersionsItem, MappingToyData>, InitializingBean {
 
     private static final Logger LOGGER = LogManager.getLogger(MappingToyInformationExtractor.class);
 
-    private Resource workingDirectoryResource;
+    @Value("${importer.directories.working:file:working}")
+    Resource workingDirectory;
 
     @Override
     public MappingToyData process(final VersionsItem item) throws Exception {
         LOGGER.info("Processing Version with MappingToy: " + item.getId());
-        final File workingDir = new File(workingDirectoryResource.getFile().getAbsolutePath());
-        Assert.state(workingDir.exists(), "Working directory does not exist: " + workingDir.getAbsolutePath());
+        final File workingDir = new File(workingDirectory.getFile().getAbsolutePath());
+        Assert.state(workingDir.exists(), "The working directory does not exist: " + workingDir.getAbsolutePath());
         Assert.state(workingDir.isDirectory(), "The working directory is not a directory: " + workingDir.getAbsolutePath());
 
         final File mapDataDirectory = new File(workingDir, "map_data");
@@ -59,7 +63,7 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
         //Invoke mapping toy.
         MappingToy.main(mappingToyArgs.toArray(new String[0]));
 
-        final File versionedMapDataDirectory = new File(mapDataDirectory, item.toString());
+        final File versionedMapDataDirectory = new File(mapDataDirectory, item.getId());
 
         final File metadataFile = new File(versionedMapDataDirectory, "joined_a_meta.json");
         final File mappingDataFile = new File(versionedMapDataDirectory, "joined_o_to_n.tsrg");
@@ -85,12 +89,8 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
         }
     }
 
-    public void setWorkingDirectoryResource(final Resource workingDirectoryResource) {
-        this.workingDirectoryResource = workingDirectoryResource;
-    }
-
     @Override
     public void afterPropertiesSet() throws Exception {
-        Assert.notNull(workingDirectoryResource, "Working directory is not set!");
+        Assert.notNull(workingDirectory, "Working directory is not set!");
     }
 }

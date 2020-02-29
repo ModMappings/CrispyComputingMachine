@@ -16,12 +16,12 @@ public final class Constants {
 
     public static final String DELETE_WORKING_DIR_STEP = "downloadWorkingDirStep";
     public static final String DOWNLOAD_MANIFEST_VERSION_STEP_NAME = "downloadManifestVersion";
-    public static final String DETERMINE_VERSIONS_TO_IMPORT_STEP_NAME = "determineVersionsToImport";
+    public static final String IMPORT_MAPPINGS = "importMappings";
 
     public static final String WORKING_DIR = "./working";
     public static final String MANIFEST_WORKING_FILE = "version_manifest.json";
 
-    public static final int DETERMINE_VERIONS_TO_IMPORT_CHUNK_SIZE = 10;
+    public static final int IMPORT_MAPPINGS_CHUNK_SIZE = 10;
 
     public static final String OFFICIAL_MAPPING_NAME = "Official";
     public static final String OFFICIAL_MAPPING_STATE_IN = "Obfuscated";

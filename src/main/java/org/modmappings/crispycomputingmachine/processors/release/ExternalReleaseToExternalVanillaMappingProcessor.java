@@ -1,14 +1,17 @@
 package org.modmappings.crispycomputingmachine.processors.release;
 
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalClass;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Component
 public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemProcessor<ExternalRelease, List<ExternalVanillaMapping>> {
 
     @Override
@@ -32,7 +35,8 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                             externalClass.getVisibility(),
                             externalClass.isStatic(),
                             null,
-                            null
+                            null,
+                            externalClass.getSuperClasses().stream().map(ExternalClass::getOutput).collect(Collectors.toList())
                     )
             );
 
@@ -47,8 +51,9 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     externalMethod.getVisibility(),
                     externalMethod.isStatic(),
                     null,
-                    externalMethod.getSignature()
-            )).forEach(mappingsForVersion::add);
+                    externalMethod.getSignature(),
+                    new ArrayList<>())) //TODO: Insert the override data from here.
+                .forEach(mappingsForVersion::add);
 
             externalClass.getFields().stream().map(externalField -> new ExternalVanillaMapping(
                     externalField.getInput(),
@@ -61,8 +66,9 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     externalField.getVisibility(),
                     externalField.isStatic(),
                     externalField.getType(),
-                    null
-            )).forEach(mappingsForVersion::add);
+                    null,
+                    new ArrayList<>()))
+            .forEach(mappingsForVersion::add);
 
             return mappingsForVersion.stream();
         }).collect(Collectors.toList());

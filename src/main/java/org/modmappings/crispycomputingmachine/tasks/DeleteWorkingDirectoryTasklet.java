@@ -5,18 +5,22 @@ import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import java.io.File;
 
+@Component
 public class DeleteWorkingDirectoryTasklet implements Tasklet, InitializingBean {
 
-    private Resource workingDirectoryResource;
+    @Value("${importer.directories.working:file:working}")
+    Resource workingDirectory;
 
     @Override
     public RepeatStatus execute(final StepContribution contribution, final ChunkContext chunkContext) throws Exception {
-        File workingDir =  workingDirectoryResource.getFile();
+        File workingDir =  workingDirectory.getFile();
 
         if (workingDir.exists())
         {
@@ -26,12 +30,8 @@ public class DeleteWorkingDirectoryTasklet implements Tasklet, InitializingBean 
         return RepeatStatus.FINISHED;
     }
 
-    public void setWorkingDirectoryResource(final Resource workingDirectoryResource) {
-        this.workingDirectoryResource = workingDirectoryResource;
-    }
-
     @Override
     public void afterPropertiesSet() throws Exception {
-        Assert.notNull(workingDirectoryResource, "Working directory is not set.");
+        Assert.notNull(workingDirectory, "The working directory is not set.");
     }
 }

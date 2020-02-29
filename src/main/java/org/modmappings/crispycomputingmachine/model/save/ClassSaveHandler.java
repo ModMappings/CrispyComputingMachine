@@ -236,9 +236,6 @@ public class ClassSaveHandler {
             final ReleaseComponentRepository releaseComponentRepository
     )
     {
-        DatabaseClient databaseClient;
-        databaseClient.select().from(VersionedMappableDMO.class).
-
         return Flux.fromIterable(externalClass.getFields())
                 .doOnNext(eField -> LOGGER.info("Dispatching saving of field: " + eField.getOutput() + " in " + externalClass.getOutput()))
                 .flatMap(externalField -> FieldSaveHandler.createAndRunSave(mappingTypeId, release, externalField, versionedMappable, mappingRepository, versionedMappableRepository, mappableRepository, releaseComponentRepository), 1)

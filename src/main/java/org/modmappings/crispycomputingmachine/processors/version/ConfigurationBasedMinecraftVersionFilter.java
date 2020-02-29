@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.processors;
+package org.modmappings.crispycomputingmachine.processors.version;
 
 import net.minecraftforge.srgutils.MinecraftVersion;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;

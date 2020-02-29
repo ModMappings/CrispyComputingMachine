@@ -4,6 +4,11 @@
       "name": "importer.versions",
       "type": "java.lang.String[]",
       "description": "The minecraft versions to import. Leave empty to import all."
+    },
+    {
+      "name": "importer.directories.working",
+      "type": "java.lang.String",
+      "description": "The working directory of the importer."
     }
   ]
 }

@@ -5,11 +5,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
+@Component
 public class OfficialMappingPublishedVersionFilter implements ItemProcessor<VersionsItem, VersionsItem> {
 
     private static final Logger LOGGER = LogManager.getLogger(OfficialMappingPublishedVersionFilter.class);

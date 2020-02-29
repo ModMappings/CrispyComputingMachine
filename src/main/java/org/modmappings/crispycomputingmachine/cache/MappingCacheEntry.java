@@ -7,7 +7,7 @@ import java.util.UUID;
 public class MappingCacheEntry {
 
     private String output;
-    private UUID mappingId;
+    private UUID mappableId;
     private UUID versionedMappableId;
     private MappableTypeDMO mappableTypeDMO;
     private String parentClassOutput;
@@ -15,9 +15,9 @@ public class MappingCacheEntry {
     private UUID gameVersionedId;
     private String gameVersionName;
 
-    public MappingCacheEntry(final String output, final UUID mappingId, final UUID versionedMappableId, final MappableTypeDMO mappableTypeDMO, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName) {
+    public MappingCacheEntry(final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableTypeDMO, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName) {
         this.output = output;
-        this.mappingId = mappingId;
+        this.mappableId = mappableId;
         this.versionedMappableId = versionedMappableId;
         this.mappableTypeDMO = mappableTypeDMO;
         this.parentClassOutput = parentClassOutput;
@@ -30,8 +30,8 @@ public class MappingCacheEntry {
         return output;
     }
 
-    public UUID getMappingId() {
-        return mappingId;
+    public UUID getMappableId() {
+        return mappableId;
     }
 
     public UUID getVersionedMappableId() {

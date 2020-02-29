@@ -6,9 +6,11 @@ import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.mmms.repository.repositories.core.gameversions.GameVersionRepository;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Component;
 
 import java.util.function.Function;
 
+@Component
 public class ExistingMinecraftVersionFilter implements ItemProcessor<VersionsItem, VersionsItem> {
 
     private static final Logger LOGGER = LogManager.getLogger(ExistingMinecraftVersionFilter.class);

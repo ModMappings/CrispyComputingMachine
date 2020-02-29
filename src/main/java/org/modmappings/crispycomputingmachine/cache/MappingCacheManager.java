@@ -1,22 +1,24 @@
 package org.modmappings.crispycomputingmachine.cache;
 
-import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
+import org.modmappings.crispycomputingmachine.utils.MappingKey;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.MappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.MappableTypeDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.VersionedMappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappings.MappingDMO;
 import org.springframework.data.r2dbc.core.DatabaseClient;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Component
 public class MappingCacheManager {
 
     private final DatabaseClient databaseClient;
 
-    private Map<FullCacheId, MappingCacheEntry> outputCache = new HashMap<>();
+    private Map<MappingKey, MappingCacheEntry> outputCache = new HashMap<>();
     private Map<UUID, MappableDMO> mappableCache = new HashMap<>();
     private Map<UUID, MappingCacheEntry> versionedMappableIdClassCache = new HashMap<>();
     private Map<UUID, MappingCacheEntry> versionedMappableIdMethodCache = new HashMap<>();
@@ -43,7 +45,7 @@ public class MappingCacheManager {
                 .as(MappingCacheEntry.class)
                 .fetch()
                 .all()
-                .collectMap(mce -> new FullCacheId(mce.getOutput(), mce.getMappableTypeDMO(), mce.getParentClassOutput(), mce.getParentMethodOutput()), Function.identity())
+                .collectMap(mce -> new MappingKey(mce.getOutput(), mce.getMappableTypeDMO(), mce.getParentClassOutput(), mce.getParentMethodOutput()), Function.identity())
                 .block();
 
         this.mappableCache = this.databaseClient.select()
@@ -96,17 +98,19 @@ public class MappingCacheManager {
         return this.gameVersionNameCache.get(name);
     }
 
+    public MappableDMO getMappable(UUID id) { return this.mappableCache.get(id); }
+
     public MappingCacheEntry getClass(String mapping) {
         String parent = null;
         if (mapping.contains("$"))
             parent = mapping.substring(0, mapping.lastIndexOf("$"));
 
-        final FullCacheId id = new FullCacheId(mapping, MappableTypeDMO.CLASS, parent, null);
+        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null);
         return this.outputCache.get(id);
     }
 
     public MappingCacheEntry getMethod(String mapping, String parentClass) {
-        final FullCacheId id = new FullCacheId(
+        final MappingKey id = new MappingKey(
                 mapping,
                 MappableTypeDMO.METHOD,
                 parentClass,
@@ -116,7 +120,7 @@ public class MappingCacheManager {
     }
 
     public MappingCacheEntry getField(String mapping, String parentClass) {
-        final FullCacheId id = new FullCacheId(
+        final MappingKey id = new MappingKey(
                 mapping,
                 MappableTypeDMO.FIELD,
                 parentClass,
@@ -126,7 +130,7 @@ public class MappingCacheManager {
     }
 
     public MappingCacheEntry getParameter(String mapping, String parentClass, String parentMethod) {
-        final FullCacheId id = new FullCacheId(
+        final MappingKey id = new MappingKey(
                 mapping,
                 MappableTypeDMO.PARAMETER,
                 parentClass,
@@ -151,14 +155,14 @@ public class MappingCacheManager {
                 gameVersionIdCache.get(versionedMappable.getGameVersionId()).getName()
         );
 
-        final FullCacheId fullCacheId = new FullCacheId(
+        final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableTypeDMO(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
 
-        this.outputCache.put(fullCacheId, newEntry);
+        this.outputCache.put(mappingKey, newEntry);
         this.mappableCache.put(mappable.getId(), mappable);
         this.versionedMappableIdClassCache.put(versionedMappable.getId(), newEntry);
     }
@@ -175,14 +179,14 @@ public class MappingCacheManager {
                 getGameVersion(versionedMappable.getGameVersionId()).getName()
         );
 
-        final FullCacheId fullCacheId = new FullCacheId(
+        final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableTypeDMO(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
 
-        this.outputCache.put(fullCacheId, newEntry);
+        this.outputCache.put(mappingKey, newEntry);
         this.mappableCache.put(mappable.getId(), mappable);
         this.versionedMappableIdMethodCache.put(versionedMappable.getId(), newEntry);
     }
@@ -199,14 +203,14 @@ public class MappingCacheManager {
                 getGameVersion(versionedMappable.getGameVersionId()).getName()
         );
 
-        final FullCacheId fullCacheId = new FullCacheId(
+        final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableTypeDMO(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
 
-        this.outputCache.put(fullCacheId, newEntry);
+        this.outputCache.put(mappingKey, newEntry);
         this.mappableCache.put(mappable.getId(), mappable);
         this.versionedMappableIdFieldCache.put(versionedMappable.getId(), newEntry);
     }
@@ -223,52 +227,16 @@ public class MappingCacheManager {
                 getGameVersion(versionedMappable.getGameVersionId()).getName()
         );
 
-        final FullCacheId fullCacheId = new FullCacheId(
+        final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableTypeDMO(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
 
-        this.outputCache.put(fullCacheId, newEntry);
+        this.outputCache.put(mappingKey, newEntry);
         this.mappableCache.put(mappable.getId(), mappable);
         this.versionedMappableIdParameterCache.put(versionedMappable.getId(), newEntry);
     }
 
-    private static final class FullCacheId {
-        private final String mapping;
-        private final MappableTypeDMO mappingType;
-        private final String parentClassMapping;
-        private final String parentMethodMapping;
-
-        private FullCacheId(final String mapping, final MappableTypeDMO mappingType, final String parentClassMapping, final String parentMethodMapping) {
-            this.mapping = mapping;
-            this.mappingType = mappingType;
-            this.parentClassMapping = parentClassMapping;
-            this.parentMethodMapping = parentMethodMapping;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            final FullCacheId that = (FullCacheId) o;
-
-            if (!mapping.equals(that.mapping)) return false;
-            if (!mappingType.equals(that.mappingType)) return false;
-            if (!Objects.equals(parentClassMapping, that.parentClassMapping))
-                return false;
-            return Objects.equals(parentMethodMapping, that.parentMethodMapping);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = mapping.hashCode();
-            result = 31 * result + mappingType.hashCode();
-            result = 31 * result + (parentClassMapping != null ? parentClassMapping.hashCode() : 0);
-            result = 31 * result + (parentMethodMapping != null ? parentMethodMapping.hashCode() : 0);
-            return result;
-        }
-    }
 }
