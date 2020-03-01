@@ -21,52 +21,57 @@ public class ExternalVanillaMappingSorter implements ItemProcessor<List<External
 
         final List<ExternalVanillaMapping> classes = item.stream()
                 .filter(evm -> evm.getMappableType() == ExternalMappableType.CLASS)
+                .collect(Collectors.toList());
+        classes.sort(Comparator.comparing(ExternalVanillaMapping::getGameVersionReleaseDate)
+                .thenComparing((left, right) -> {
+                    if((left.getOutput().contains("com/mojang/blaze3d/audio/OggAudioStream") && right.getOutput().contains("net/minecraft/client/sounds/AudioStream")) ||
+                            (right.getOutput().contains("com/mojang/blaze3d/audio/OggAudioStream") && left.getOutput().contains("net/minecraft/client/sounds/AudioStream")))
+                            System.out.println("Found them!");
+
+                    if (left.getMappableType() == ExternalMappableType.CLASS &&
+                            right.getMappableType() == ExternalMappableType.CLASS) {
+                        if (inheritanceOrOverrideData.get(right).contains(left))
+                            return -1;
+
+                        //If right is super class, or overriden by, left then rights needs to go first.
+                        if (inheritanceOrOverrideData.get(left).contains(right))
+                            return 1;
+                    }
+
+                    return 0;
+                })
+                .thenComparing(evm -> evm.getOutput().chars().filter(ch -> ch == '$').count())
+                .thenComparing(ExternalVanillaMapping::getParentClassMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .thenComparing(ExternalVanillaMapping::getParentMethodMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .thenComparing(ExternalVanillaMapping::getOutput)
+        );
+
+        final Map<String, Integer> classIndexMap = new HashMap<>();
+        int index = 0;
+        for (final ExternalVanillaMapping aClass : classes) {
+            classIndexMap.put(aClass.getOutput(), index++);
+        }
+        final List<ExternalVanillaMapping> methods = item.stream()
+                .filter(evm -> evm.getMappableType() == ExternalMappableType.METHOD)
                 .sorted(Comparator.comparing(ExternalVanillaMapping::getGameVersionReleaseDate)
-                        .thenComparing(ExternalVanillaMapping::getMappableType)
-                        .thenComparing((left, right) -> {
-                            if (left.getMappableType() == ExternalMappableType.CLASS &&
-                                    right.getMappableType() == ExternalMappableType.CLASS) {
-                                if (inheritanceOrOverrideData.get(right).contains(left))
-                                    return -1;
-
-                                //If right is super class, or overriden by, left then rights needs to go first.
-                                if (inheritanceOrOverrideData.get(left).contains(right))
-                                    return 1;
-                            }
-
-                            return 0;
-                        })
-                        .thenComparing(evm -> evm.getOutput().chars().filter(ch -> ch == '$').count())
-                        .thenComparing(ExternalVanillaMapping::getParentClassMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
-                        .thenComparing(ExternalVanillaMapping::getParentMethodMapping, Comparator.nullsFirst(Comparator.naturalOrder())))
+                        .thenComparing(evm -> classIndexMap.get(evm.getParentClassMapping()), Comparator.naturalOrder())
+                        .thenComparing(ExternalVanillaMapping::getParentMethodMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(ExternalVanillaMapping::getOutput))
                 .collect(Collectors.toList());
 
-        System.out.println(classes.size());
+        final List<ExternalVanillaMapping> fields = item.stream()
+                .filter(evm -> evm.getMappableType() == ExternalMappableType.FIELD)
+                .sorted(Comparator.comparing(ExternalVanillaMapping::getGameVersionReleaseDate)
+                        .thenComparing(evm -> classIndexMap.get(evm.getParentClassMapping()), Comparator.naturalOrder()).thenComparing(ExternalVanillaMapping::getParentMethodMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(ExternalVanillaMapping::getOutput))
+                .collect(Collectors.toList());
 
-        return item.stream().sorted(
-                Comparator.comparing(ExternalVanillaMapping::getGameVersionReleaseDate)
-                        .thenComparing(ExternalVanillaMapping::getMappableType)
-                       .thenComparing((left, right) -> {
-                            Assert.isTrue(left.getMappableType().equals(right.getMappableType()), "WHAST?!?!?!?");
+        final List<ExternalVanillaMapping> result = new ArrayList<>(classes);
+        result.addAll(methods);
+        result.addAll(fields);
+        //Vanilla mappings do not have parameters!;
 
-                            if (left.getMappableType() == ExternalMappableType.CLASS &&
-                                    right.getMappableType() == ExternalMappableType.CLASS) {
-                                if (inheritanceOrOverrideData.get(right).contains(left))
-                                    return -1;
-
-                                //If right is super class, or overriden by, left then rights needs to go first.
-                                if (inheritanceOrOverrideData.get(left).contains(right))
-                                    return 1;
-                            }
-
-                            return 0;
-                        })
-                        .thenComparing(evm -> evm.getOutput().chars().filter(ch -> ch == '$').count())
-                        .thenComparing(ExternalVanillaMapping::getParentClassMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
-                        .thenComparing(ExternalVanillaMapping::getParentMethodMapping, Comparator.nullsFirst(Comparator.naturalOrder()))
-                        .thenComparing(ExternalVanillaMapping::getOutput)
-            )
-            .collect(Collectors.toList());
+        return result;
     }
 
     private Map<ExternalVanillaMapping, Set<ExternalVanillaMapping>> calculateInheritanceOrOverrideMap(List<ExternalVanillaMapping> externalVanillaMappings) {
