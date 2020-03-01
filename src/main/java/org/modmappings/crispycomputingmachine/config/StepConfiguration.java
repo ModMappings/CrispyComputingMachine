@@ -1,9 +1,11 @@
 package org.modmappings.crispycomputingmachine.config;
 
+import org.modmappings.crispycomputingmachine.cache.ChunkCacheExecutionListener;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
+import org.modmappings.crispycomputingmachine.readers.MTRespectingReaderAndCompletionPolicy;
 import org.modmappings.crispycomputingmachine.tasks.DeleteWorkingDirectoryTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMinecraftManifestTasklet;
 import org.modmappings.crispycomputingmachine.utils.Constants;
@@ -45,14 +47,18 @@ public class StepConfiguration {
     @Bean
     public Step performMinecraftVersionImport(
             final ExternalVanillaMappingReader reader,
-            final ExternalVanillaMappingWriter writer
-    )
+            final ExternalVanillaMappingWriter writer,
+            final ChunkCacheExecutionListener listener
+            )
     {
+        final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
+
         return stepBuilderFactory
                 .get(Constants.IMPORT_MAPPINGS)
-                .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(Constants.IMPORT_MAPPINGS_CHUNK_SIZE)
-                .reader(reader)
+                .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
+                .reader(policyReader)
                 .writer(writer)
+                .listener(listener)
                 .build();
     }
 }

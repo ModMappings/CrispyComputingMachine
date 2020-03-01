@@ -45,7 +45,7 @@ public class MappingCacheManager {
                 .as(MappingCacheEntry.class)
                 .fetch()
                 .all()
-                .collectMap(mce -> new MappingKey(mce.getOutput(), mce.getMappableTypeDMO(), mce.getParentClassOutput(), mce.getParentMethodOutput()), Function.identity())
+                .collectMap(mce -> new MappingKey(mce.getOutput(), mce.getMappableType(), mce.getParentClassOutput(), mce.getParentMethodOutput()), Function.identity())
                 .block();
 
         this.mappableCache = this.databaseClient.select()
@@ -56,19 +56,19 @@ public class MappingCacheManager {
                 .block();
 
         this.versionedMappableIdClassCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableTypeDMO() == MappableTypeDMO.CLASS)
+                .filter(mce -> mce.getMappableType() == MappableTypeDMO.CLASS)
                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.versionedMappableIdMethodCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableTypeDMO() == MappableTypeDMO.METHOD)
+                .filter(mce -> mce.getMappableType() == MappableTypeDMO.METHOD)
                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.versionedMappableIdFieldCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableTypeDMO() == MappableTypeDMO.FIELD)
+                .filter(mce -> mce.getMappableType() == MappableTypeDMO.FIELD)
                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.versionedMappableIdFieldCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableTypeDMO() == MappableTypeDMO.PARAMETER)
+                .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.gameVersionIdCache = this.databaseClient.select().from(GameVersionDMO.class).fetch().all()
@@ -157,7 +157,7 @@ public class MappingCacheManager {
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
-                newEntry.getMappableTypeDMO(),
+                newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
@@ -181,7 +181,7 @@ public class MappingCacheManager {
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
-                newEntry.getMappableTypeDMO(),
+                newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
@@ -205,7 +205,7 @@ public class MappingCacheManager {
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
-                newEntry.getMappableTypeDMO(),
+                newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );
@@ -229,7 +229,7 @@ public class MappingCacheManager {
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
-                newEntry.getMappableTypeDMO(),
+                newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
                 newEntry.getParentMethodOutput()
         );

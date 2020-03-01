@@ -25,6 +25,8 @@ import reactor.core.publisher.Mono;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaMapping> {
@@ -41,13 +43,13 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
     @Override
     public void write(final List<? extends ExternalVanillaMapping> items) throws Exception {
-        final Map<String, GameVersionDMO> gameVersionsToSave = new HashMap<>();
-        final Map<String, ReleaseDMO> releasesToSave = new HashMap<>();
-        final Map<ExternalVanillaMapping, MappableDMO> mappablesToSave = new HashMap<>();
-        final Map<ExternalVanillaMapping, VersionedMappableDMO> versionedMappablesToSave = new HashMap<>();
-        final Map<ExternalVanillaMapping, MappingDMO> mappingsToSave = new HashMap<>();
-        final Map<ExternalVanillaMapping, ReleaseComponentDMO> releaseComponentsToSave = new HashMap<>();
-        final List<InheritanceDataDMO> inheritanceDataToSave = new ArrayList<>();
+        final Map<String, GameVersionDMO> gameVersionsToSave = new LinkedHashMap<>();
+        final Map<String, ReleaseDMO> releasesToSave = new LinkedHashMap<>();
+        final Map<ExternalVanillaMapping, MappableDMO> mappablesToSave = new LinkedHashMap<>();
+        final Map<ExternalVanillaMapping, VersionedMappableDMO> versionedMappablesToSave = new LinkedHashMap<>();
+        final Map<ExternalVanillaMapping, MappingDMO> mappingsToSave = new LinkedHashMap<>();
+        final Map<ExternalVanillaMapping, ReleaseComponentDMO> releaseComponentsToSave = new LinkedHashMap<>();
+        final List<InheritanceDataDMO> inheritanceDataToSave = new LinkedList<>();
         final MappingTypeDMO officialMappingType = getOfficialMappingType();
 
         items.forEach(evm -> {
@@ -128,15 +130,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     );
                     releaseComponentsToSave.put(evm, releaseComponent);
 
-                    evm.getSuperClasses().forEach(superMapping -> {
-                        final UUID superId = mappingCacheManager.getClass(superMapping).getVersionedMappableId();
-                        final InheritanceDataDMO inheritanceData = new InheritanceDataDMO(
-                                UUID.randomUUID(),
-                                superId,
-                                versionedMappable.getId()
-                        );
-                        inheritanceDataToSave.add(inheritanceData);
-                    });
+
 
                     CacheUtils.registerNewEntry(
                             mappable,
@@ -146,13 +140,29 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     );
                 });
 
+        items.stream().filter(evm -> evm.getMappableType() == ExternalMappableType.CLASS)
+                .forEach(evm -> {
+                    final VersionedMappableDMO versionedMappable = versionedMappablesToSave.get(evm);
+
+                    evm.getSuperClasses().forEach(superMapping -> {
+                        final UUID superId = mappingCacheManager.getClass(superMapping).getVersionedMappableId();
+                        final InheritanceDataDMO inheritanceData = new InheritanceDataDMO(
+                                UUID.randomUUID(),
+                                superId,
+                                versionedMappable.getId()
+                        );
+                        inheritanceDataToSave.add(inheritanceData);
+                    });
+                });
+
         if (gameVersionsToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final Long rowsUpdated = databaseClient.insert()
                     .into(GameVersionDMO.class)
                     .using(Flux.fromIterable(gameVersionsToSave.values()))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
                     .block();
 
             LOGGER.warn("Created: " + rowsUpdated + " new game versions from: " + gameVersionsToSave.size() + " local new instances");
@@ -160,11 +170,12 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
         if (releasesToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final Long rowsUpdated = databaseClient.insert()
                     .into(ReleaseDMO.class)
                     .using(Flux.fromIterable(releasesToSave.values()))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
                     .block();
 
             LOGGER.warn("Created: " + rowsUpdated + " new releases from: " + gameVersionsToSave.size() + " local new instances");
@@ -172,11 +183,12 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
         if (mappablesToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final Long rowsUpdated = databaseClient.insert()
                     .into(MappableDMO.class)
                     .using(Flux.fromIterable(mappablesToSave.values()))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
                     .block();
 
             LOGGER.warn("Created " + rowsUpdated + " new mappables from: " + mappablesToSave.size() + " local new instances.");
@@ -184,11 +196,16 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
         if (versionedMappablesToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final List<VersionedMappableDMO> savingOrder =
+                    versionedMappablesToSave.entrySet().stream().sorted(Comparator.comparing((Function<Map.Entry<ExternalVanillaMapping, VersionedMappableDMO>, Long>) externalVanillaMappingVersionedMappableDMOEntry -> externalVanillaMappingVersionedMappableDMOEntry.getKey().getOutput().chars().filter((c) -> c == '$').count()).thenComparing(externalVanillaMappingVersionedMappableDMOEntry -> externalVanillaMappingVersionedMappableDMOEntry.getKey().getOutput())).map(Map.Entry::getValue).collect(Collectors.toList());
+
+            final Long rowsUpdated = databaseClient.insert()
                     .into(VersionedMappableDMO.class)
-                    .using(Flux.fromIterable(versionedMappablesToSave.values()))
+                    .using(Flux.fromIterable(savingOrder))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
+                    .doOnError(error -> LOGGER.error("Failed to save: ", error))
                     .block();
 
             LOGGER.warn("Created: " + rowsUpdated + " new versioned mappables from: " + versionedMappablesToSave.size() + " local new instances");
@@ -196,11 +213,12 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
         if (mappingsToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final Long rowsUpdated = databaseClient.insert()
                     .into(MappingDMO.class)
                     .using(Flux.fromIterable(mappingsToSave.values()))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
                     .block();
 
             LOGGER.warn("Created: " + rowsUpdated + " new mappings from: " + mappingsToSave.size() + " local new instances");
@@ -208,11 +226,12 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
         if (releaseComponentsToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final Long rowsUpdated = databaseClient.insert()
                     .into(ReleaseComponentDMO.class)
                     .using(Flux.fromIterable(releaseComponentsToSave.values()))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
                     .block();
 
             LOGGER.warn("Created: " + rowsUpdated + " new release component from: " + gameVersionsToSave.size() + " local new instances");
@@ -220,11 +239,12 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
         if (inheritanceDataToSave.size() > 0)
         {
-            final Integer rowsUpdated = databaseClient.insert()
+            final Long rowsUpdated = databaseClient.insert()
                     .into(InheritanceDataDMO.class)
                     .using(Flux.fromIterable(inheritanceDataToSave))
                     .fetch()
-                    .rowsUpdated()
+                    .all()
+                    .count()
                     .block();
 
             LOGGER.warn("Created: " + rowsUpdated + " new inheritance data entries from: " + gameVersionsToSave.size() + " local new instances");

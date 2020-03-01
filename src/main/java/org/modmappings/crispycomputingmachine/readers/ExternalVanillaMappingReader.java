@@ -1,5 +1,7 @@
 package org.modmappings.crispycomputingmachine.readers;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import net.minecraftforge.lex.mappingtoy.Utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
-public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<ExternalVanillaMapping> implements InitializingBean {
+public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<ExternalVanillaMapping> implements InitializingBean, PeekableItemReader<ExternalVanillaMapping> {
 
     private static final Logger LOGGER = LogManager.getLogger(ExternalVanillaMappingReader.class);
 
@@ -32,9 +34,9 @@ public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<E
 
     private final CompositeItemProcessor<VersionsItem, List<ExternalVanillaMapping>> internalVanillaMappingReaderProcessor;
 
-    private Iterator<VersionsItem> versionIterator = null;
+    private PeekingIterator<VersionsItem> versionIterator = null;
     private VersionsItem currentVersion = null;
-    private Iterator<ExternalVanillaMapping> vanillaMappingIterator = null;
+    private PeekingIterator<ExternalVanillaMapping> vanillaMappingIterator = null;
 
     public ExternalVanillaMappingReader(final CompositeItemProcessor<VersionsItem, List<ExternalVanillaMapping>> internalVanillaMappingReaderProcessor) {
         this.internalVanillaMappingReaderProcessor = internalVanillaMappingReaderProcessor;
@@ -57,7 +59,7 @@ public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<E
             File manifestFile = new File(workingDir, Constants.MANIFEST_WORKING_FILE);
             Assert.state(manifestFile.exists(), "Minecraft version manifest file does not exist!");
             final LauncherMetadata manifestJson = Utils.loadJson(manifestFile.toPath(), LauncherMetadata.class);
-            this.versionIterator = manifestJson.getVersions().iterator();
+            this.versionIterator = Iterators.peekingIterator(manifestJson.getVersions().iterator());
             LOGGER.info("Downloaded the Minecraft Launcher Manifest to: " + manifestFile.getAbsolutePath());
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load manifest json.", e);
@@ -75,7 +77,7 @@ public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<E
             {
                 final List<ExternalVanillaMapping> currentVersionMappings = this.internalVanillaMappingReaderProcessor.process(this.currentVersion);
                 if (currentVersionMappings != null)
-                    this.vanillaMappingIterator = Objects.requireNonNull(currentVersionMappings).iterator();
+                    this.vanillaMappingIterator = Iterators.peekingIterator(Objects.requireNonNull(currentVersionMappings).iterator());
                 else
                     this.vanillaMappingIterator = null;
             }
@@ -90,8 +92,26 @@ public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<E
         return null;
     }
 
-    private void ensureNextVersion()
-    {
+    @Override
+    public ExternalVanillaMapping peek() throws Exception, UnexpectedInputException, ParseException {
+        Assert.notNull(this.versionIterator, "Missing the version iterator");
+        while (this.versionIterator.hasNext() && (this.currentVersion == null || this.vanillaMappingIterator == null || !this.vanillaMappingIterator.hasNext())) {
+            this.currentVersion = this.versionIterator.next();
+            if (this.currentVersion != null && (this.vanillaMappingIterator == null || !this.vanillaMappingIterator.hasNext()))
+            {
+                final List<ExternalVanillaMapping> currentVersionMappings = this.internalVanillaMappingReaderProcessor.process(this.currentVersion);
+                if (currentVersionMappings != null)
+                    this.vanillaMappingIterator = Iterators.peekingIterator(Objects.requireNonNull(currentVersionMappings).iterator());
+                else
+                    this.vanillaMappingIterator = null;
+            }
+        }
 
+        if (this.vanillaMappingIterator != null)
+        {
+            return this.vanillaMappingIterator.peek();
+        }
+
+        return null;
     }
 }

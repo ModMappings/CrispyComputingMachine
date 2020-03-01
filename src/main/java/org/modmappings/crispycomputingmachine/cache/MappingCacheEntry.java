@@ -9,17 +9,17 @@ public class MappingCacheEntry {
     private String output;
     private UUID mappableId;
     private UUID versionedMappableId;
-    private MappableTypeDMO mappableTypeDMO;
+    private MappableTypeDMO mappableType;
     private String parentClassOutput;
     private String parentMethodOutput;
     private UUID gameVersionedId;
     private String gameVersionName;
 
-    public MappingCacheEntry(final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableTypeDMO, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName) {
+    public MappingCacheEntry(final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableType, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName) {
         this.output = output;
         this.mappableId = mappableId;
         this.versionedMappableId = versionedMappableId;
-        this.mappableTypeDMO = mappableTypeDMO;
+        this.mappableType = mappableType;
         this.parentClassOutput = parentClassOutput;
         this.parentMethodOutput = parentMethodOutput;
         this.gameVersionedId = gameVersionedId;
@@ -38,8 +38,8 @@ public class MappingCacheEntry {
         return versionedMappableId;
     }
 
-    public MappableTypeDMO getMappableTypeDMO() {
-        return mappableTypeDMO;
+    public MappableTypeDMO getMappableType() {
+        return mappableType;
     }
 
     public String getParentClassOutput() {
