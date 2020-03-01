@@ -75,13 +75,18 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
 
                     target.getMethods().addAll(
                             classData.getMethods().entrySet().stream().map(
-                                    (entry) -> new ExternalMethod(
-                                            entry.getKey(),
-                                            item.getMergedMappingData().findClassFromName(obfClassName).remapMethod(entry.getKey(), entry.getValue().getSignature()),
-                                            toVisibility(entry.getValue()),
-                                            entry.getValue().isStatic(),
-                                            entry.getValue().getSignature()
-                                    )
+                                    (entry) -> {
+                                        final String obfMethodName = entry.getKey().substring(0, entry.getKey().indexOf("("));
+                                        final String obfSignature = entry.getKey().substring(obfMethodName.length());
+
+                                        return new ExternalMethod(
+                                                obfMethodName,
+                                                item.getMergedMappingData().findClassFromName(obfClassName).remapMethod(obfMethodName, obfSignature),
+                                                toVisibility(entry.getValue()),
+                                                entry.getValue().isStatic(),
+                                                obfSignature
+                                        );
+                                    }
                             ).collect(Collectors.toList())
                     );
 

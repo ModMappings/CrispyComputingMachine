@@ -27,13 +27,13 @@ public final class CacheUtils {
                 entry = cacheManager.getClass(externalVanillaMapping.getOutput());
                 break;
             case METHOD:
-                entry = cacheManager.getMethod(externalVanillaMapping.getOutput(), externalVanillaMapping.getParentClassMapping());
+                entry = cacheManager.getMethod(externalVanillaMapping.getOutput(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getDescriptor());
                 break;
             case FIELD:
-                entry = cacheManager.getField(externalVanillaMapping.getOutput(), externalVanillaMapping.getParentClassMapping());
+                entry = cacheManager.getField(externalVanillaMapping.getOutput(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getType());
                 break;
             case PARAMETER:
-                entry = cacheManager.getParameter(externalVanillaMapping.getOutput(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodMapping());
+                entry = cacheManager.getParameter(externalVanillaMapping.getOutput(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getType());
                 break;
         }
         return entry;

@@ -14,8 +14,10 @@ public class MappingCacheEntry {
     private String parentMethodOutput;
     private UUID gameVersionedId;
     private String gameVersionName;
+    private String type;
+    private String descriptor;
 
-    public MappingCacheEntry(final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableType, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName) {
+    public MappingCacheEntry(final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableType, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName, final String type, final String descriptor) {
         this.output = output;
         this.mappableId = mappableId;
         this.versionedMappableId = versionedMappableId;
@@ -24,6 +26,8 @@ public class MappingCacheEntry {
         this.parentMethodOutput = parentMethodOutput;
         this.gameVersionedId = gameVersionedId;
         this.gameVersionName = gameVersionName;
+        this.type = type;
+        this.descriptor = descriptor;
     }
 
     public String getOutput() {
@@ -56,5 +60,13 @@ public class MappingCacheEntry {
 
     public String getGameVersionName() {
         return gameVersionName;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getDescriptor() {
+        return descriptor;
     }
 }

@@ -27,8 +27,8 @@ repositories {
 dependencies {
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
 
-    implementation 'org.modmappings.mmms:repository:0.1.0-305.gc590c51'
-    implementation 'org.modmappings.mmms:er2dbc:0.1.0-305.gc590c51'
+    implementation 'org.modmappings.mmms:repository:0.1.0-306.ga6a9a8a'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-306.ga6a9a8a'
 
     implementation 'com.google.guava:guava:28.2-jre'
 

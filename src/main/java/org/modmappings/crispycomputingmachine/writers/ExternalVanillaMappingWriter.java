@@ -53,8 +53,6 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
         final MappingTypeDMO officialMappingType = getOfficialMappingType();
 
         items.forEach(evm -> {
-                    LOGGER.info(String.format("Processing: %s in : %s and : %s", evm.getOutput(), evm.getParentClassMapping(), evm.getParentMethodMapping()));
-
                     if (!CacheUtils.vanillaAlreadyExists(evm, mappingCacheManager))
                     {
                         mappablesToSave.put(evm, new MappableDMO(
@@ -72,7 +70,9 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                             gameVersionsToSave.get(evm.getGameVersion()) :
                             mappingCacheManager.getGameVersion(evm.getGameVersion());
 
-                    ReleaseDMO release = releasesToSave.getOrDefault(evm.getGameVersion(), null);
+                    ReleaseDMO release = releasesToSave.containsKey(evm.getGameVersion()) ?
+                            releasesToSave.get(evm.getGameVersion()) :
+                            mappingCacheManager.getRelease(evm.getGameVersion());
 
                     if (gameVersion == null)
                     {
@@ -98,6 +98,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                         releasesToSave.put(evm.getGameVersion(), release);
 
                         mappingCacheManager.registerNewGameVersion(gameVersion);
+                        mappingCacheManager.registerNewRelease(release);
                     }
 
                     Assert.notNull(release, "Release could not be determined.... How can there be a game version without a release.");
@@ -191,7 +192,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created " + rowsUpdated + " new mappables from: " + mappablesToSave.size() + " local new instances.");
+            LOGGER.warn("Created: " + rowsUpdated + " new mappables from: " + mappablesToSave.size() + " local new instances.");
         }
 
         if (versionedMappablesToSave.size() > 0)
@@ -234,7 +235,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new release component from: " + gameVersionsToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new release component from: " + releaseComponentsToSave.size() + " local new instances");
         }
 
         if (inheritanceDataToSave.size() > 0)
@@ -247,7 +248,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new inheritance data entries from: " + gameVersionsToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new inheritance data entries from: " + inheritanceDataToSave.size() + " local new instances");
         }
 
 
@@ -287,7 +288,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                 externalVanillaMapping.getType(),
                 externalVanillaMapping.getParentClassMapping() == null ? null : mappingCacheManager.getClass(externalVanillaMapping.getParentClassMapping()).getVersionedMappableId(),
                 externalVanillaMapping.getDescriptor(),
-                externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethod(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping()).getVersionedMappableId()
+                externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethod(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodDescriptor()).getVersionedMappableId()
         );
     }
 

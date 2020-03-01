@@ -2,6 +2,7 @@ package org.modmappings.crispycomputingmachine.cache;
 
 import org.modmappings.crispycomputingmachine.utils.MappingKey;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
+import org.modmappings.mmms.repository.model.core.release.ReleaseDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.MappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.MappableTypeDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.VersionedMappableDMO;
@@ -26,26 +27,28 @@ public class MappingCacheManager {
     private Map<UUID, MappingCacheEntry> versionedMappableIdParameterCache = new HashMap<>();
     private Map<UUID, GameVersionDMO> gameVersionIdCache = new HashMap<>();
     private Map<String, GameVersionDMO> gameVersionNameCache = new HashMap<>();
+    private Map<UUID, ReleaseDMO> releaseIdCache = new HashMap<>();
+    private Map<String, ReleaseDMO> releaseNameCache = new HashMap<>();
 
     public MappingCacheManager(final DatabaseClient databaseClient) {
         this.databaseClient = databaseClient;
     }
 
     public void initializeCache() {
-        this.outputCache = databaseClient.execute("SELECT m.output as output, mp.id as mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, gv.id as game_version_id, gv.name as game_version_name FROM mapping m\n" +
-                "    JOIN release_component rc on m.id = rc.mapping_id\n" +
-                "    JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
-                "    JOIN game_version gv on vm.game_version_id = gv.id\n" +
-                "    JOIN mappable mp on vm.mappable_id = mp.id\n" +
-                "    JOIN mapping_type mt on m.mapping_type_id = mt.id\n" +
-                "    LEFT OUTER JOIN mapping m2 ON m.versioned_mappable_id = m2.versioned_mappable_id And m.mapping_type_id = m2.mapping_type_id and m.created_on < m2.created_on\n" +
-                "    LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id\n" +
-                "    LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id\n" +
+        this.outputCache = databaseClient.execute("SELECT m.output as output, mp.id as mappable_id, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor FROM mapping m\n" +
+                "  JOIN release_component rc on m.id = rc.mapping_id\n" +
+                "  JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
+                "  JOIN game_version gv on vm.game_version_id = gv.id\n" +
+                "  JOIN mappable mp on vm.mappable_id = mp.id\n" +
+                "  JOIN mapping_type mt on m.mapping_type_id = mt.id\n" +
+                "  LEFT OUTER JOIN mapping m2 ON m.versioned_mappable_id = m2.versioned_mappable_id And m.mapping_type_id = m2.mapping_type_id and m.created_on < m2.created_on\n" +
+                "  LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id\n" +
+                "  LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id\n" +
                 "WHERE m2.id is null")
                 .as(MappingCacheEntry.class)
                 .fetch()
                 .all()
-                .collectMap(mce -> new MappingKey(mce.getOutput(), mce.getMappableType(), mce.getParentClassOutput(), mce.getParentMethodOutput()), Function.identity())
+                .collectMap(mce -> new MappingKey(mce.getOutput(), mce.getMappableType(), mce.getParentClassOutput(), mce.getParentMethodOutput(), mce.getType(), mce.getDescriptor()), Function.identity())
                 .block();
 
         this.mappableCache = this.databaseClient.select()
@@ -77,6 +80,13 @@ public class MappingCacheManager {
 
         this.gameVersionNameCache = this.gameVersionIdCache.values().stream()
                 .collect(Collectors.toMap(GameVersionDMO::getName, Function.identity()));
+
+        this.releaseIdCache = this.databaseClient.select().from(ReleaseDMO.class).fetch().all()
+                .collectMap(ReleaseDMO::getId)
+                .block();
+
+        this.releaseNameCache = this.releaseIdCache.values().stream()
+                .collect(Collectors.toMap(ReleaseDMO::getName, Function.identity()));
     }
 
     public void destroyCache() {
@@ -98,6 +108,16 @@ public class MappingCacheManager {
         return this.gameVersionNameCache.get(name);
     }
 
+    public ReleaseDMO getRelease(UUID id)
+    {
+        return this.releaseIdCache.get(id);
+    }
+
+    public ReleaseDMO getRelease(String name)
+    {
+        return this.releaseNameCache.get(name);
+    }
+
     public MappableDMO getMappable(UUID id) { return this.mappableCache.get(id); }
 
     public MappingCacheEntry getClass(String mapping) {
@@ -105,42 +125,55 @@ public class MappingCacheManager {
         if (mapping.contains("$"))
             parent = mapping.substring(0, mapping.lastIndexOf("$"));
 
-        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null);
+        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null, null, null);
         return this.outputCache.get(id);
     }
 
-    public MappingCacheEntry getMethod(String mapping, String parentClass) {
+    public MappingCacheEntry getMethod(String mapping, String parentClass, String descriptor) {
         final MappingKey id = new MappingKey(
                 mapping,
                 MappableTypeDMO.METHOD,
                 parentClass,
-                null
+                null,
+                null,
+                descriptor
         );
         return this.outputCache.get(id);
     }
 
-    public MappingCacheEntry getField(String mapping, String parentClass) {
+    public MappingCacheEntry getField(String mapping, String parentClass, String type) {
         final MappingKey id = new MappingKey(
                 mapping,
                 MappableTypeDMO.FIELD,
                 parentClass,
+                null,
+                type,
                 null
         );
         return this.outputCache.get(id);
     }
 
-    public MappingCacheEntry getParameter(String mapping, String parentClass, String parentMethod) {
+    public MappingCacheEntry getParameter(String mapping, String parentClass, String parentMethod, String type) {
         final MappingKey id = new MappingKey(
                 mapping,
                 MappableTypeDMO.PARAMETER,
                 parentClass,
-                parentMethod
+                parentMethod,
+                type,
+                null
         );
         return this.outputCache.get(id);
     }
 
     public void registerNewGameVersion(final GameVersionDMO gameVersion) {
         this.gameVersionIdCache.put(gameVersion.getId(), gameVersion);
+        this.gameVersionNameCache.put(gameVersion.getName(), gameVersion);
+    }
+
+    public void registerNewRelease(final ReleaseDMO release)
+    {
+        this.releaseIdCache.put(release.getId(), release);
+        this.releaseNameCache.put(release.getName(), release);
     }
 
     public void registerNewClass(final MappableDMO mappable, final VersionedMappableDMO versionedMappable, final MappingDMO mapping) {
@@ -152,14 +185,16 @@ public class MappingCacheManager {
                 versionedMappable.getParentClassId() != null ? this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput() : null,
                 null,
                 versionedMappable.getGameVersionId(),
-                gameVersionIdCache.get(versionedMappable.getGameVersionId()).getName()
-        );
+                gameVersionIdCache.get(versionedMappable.getGameVersionId()).getName(),
+                null, null);
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput()
+                newEntry.getParentMethodOutput(),
+                newEntry.getType(),
+                newEntry.getDescriptor()
         );
 
         this.outputCache.put(mappingKey, newEntry);
@@ -176,14 +211,17 @@ public class MappingCacheManager {
                 this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
                 null,
                 versionedMappable.getGameVersionId(),
-                getGameVersion(versionedMappable.getGameVersionId()).getName()
-        );
+                getGameVersion(versionedMappable.getGameVersionId()).getName(),
+                null,
+                versionedMappable.getDescriptor());
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput()
+                newEntry.getParentMethodOutput(),
+                newEntry.getType(),
+                newEntry.getDescriptor()
         );
 
         this.outputCache.put(mappingKey, newEntry);
@@ -200,14 +238,16 @@ public class MappingCacheManager {
                 this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
                 null,
                 versionedMappable.getGameVersionId(),
-                getGameVersion(versionedMappable.getGameVersionId()).getName()
-        );
+                getGameVersion(versionedMappable.getGameVersionId()).getName(),
+                versionedMappable.getType(), null);
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput()
+                newEntry.getParentMethodOutput(),
+                newEntry.getType(),
+                newEntry.getDescriptor()
         );
 
         this.outputCache.put(mappingKey, newEntry);
@@ -224,14 +264,16 @@ public class MappingCacheManager {
                 this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
                 this.versionedMappableIdMethodCache.get(versionedMappable.getParentMethodId()).getOutput(),
                 versionedMappable.getGameVersionId(),
-                getGameVersion(versionedMappable.getGameVersionId()).getName()
-        );
+                getGameVersion(versionedMappable.getGameVersionId()).getName(),
+                versionedMappable.getType(), null);
 
         final MappingKey mappingKey = new MappingKey(
                 newEntry.getOutput(),
                 newEntry.getMappableType(),
                 newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput()
+                newEntry.getParentMethodOutput(),
+                newEntry.getType(),
+                newEntry.getDescriptor()
         );
 
         this.outputCache.put(mappingKey, newEntry);
