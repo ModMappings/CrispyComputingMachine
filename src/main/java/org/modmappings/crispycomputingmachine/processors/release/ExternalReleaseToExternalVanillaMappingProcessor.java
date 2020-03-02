@@ -8,6 +8,7 @@ import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,8 +38,9 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                             externalClass.isStatic(),
                             null,
                             null,
-                            externalClass.getSuperClasses().stream().map(ExternalClass::getOutput).collect(Collectors.toList())
-                    )
+                            null,
+                            externalClass.getSuperClasses().stream().map(ExternalClass::getOutput).collect(Collectors.toList()),
+                            new HashSet<>())
             );
 
             externalClass.getMethods().stream().map(externalMethod -> new ExternalVanillaMapping(
@@ -53,8 +55,10 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     externalMethod.getVisibility(),
                     externalMethod.isStatic(),
                     null,
+                    externalMethod.getDescriptor(),
                     externalMethod.getSignature(),
-                    new ArrayList<>())) //TODO: Insert the override data from here.
+                    new ArrayList<>(),
+                    externalMethod.getOverrides()))
                 .forEach(mappingsForVersion::add);
 
             externalClass.getFields().stream().map(externalField -> new ExternalVanillaMapping(
@@ -70,7 +74,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     externalField.isStatic(),
                     externalField.getType(),
                     null,
-                    new ArrayList<>()))
+                    null, new ArrayList<>(), new HashSet<>()))
             .forEach(mappingsForVersion::add);
 
             return mappingsForVersion.stream();

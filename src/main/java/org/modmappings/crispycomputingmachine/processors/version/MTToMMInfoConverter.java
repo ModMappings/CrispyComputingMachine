@@ -1,6 +1,5 @@
 package org.modmappings.crispycomputingmachine.processors.version;
 
-import net.minecraftforge.srgutils.MinecraftVersion;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
@@ -84,7 +83,9 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                                                 item.getMergedMappingData().findClassFromName(obfClassName).remapMethod(obfMethodName, obfSignature),
                                                 toVisibility(entry.getValue()),
                                                 entry.getValue().isStatic(),
-                                                obfSignature
+                                                obfSignature,
+                                                entry.getValue().getSignature(),
+                                                entry.getValue().getOverrides().stream().map(mr -> mr.remap(item.getMergedMappingData())).collect(Collectors.toSet())
                                         );
                                     }
                             ).collect(Collectors.toList())

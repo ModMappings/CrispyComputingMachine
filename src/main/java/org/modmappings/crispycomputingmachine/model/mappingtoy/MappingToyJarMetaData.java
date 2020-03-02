@@ -1,7 +1,7 @@
 package org.modmappings.crispycomputingmachine.model.mappingtoy;
 
-import net.minecraftforge.lex.mappingtoy.JarMetadata;
 import net.minecraftforge.lex.mappingtoy.Utils;
+import org.modmappings.crispycomputingmachine.utils.MethodRef;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -191,7 +191,7 @@ public class MappingToyJarMetaData {
             private final String signature;
             private final Bounce bouncer;
             private String force;
-            private Set<Method> overrides;
+            private Set<MethodRef> overrides;
 
             private MethodInfo(MethodNode node, boolean lambda) {
                 this.name = node.name;
@@ -240,7 +240,7 @@ public class MappingToyJarMetaData {
 
                                 MethodInsnNode mtd = (MethodInsnNode)end;
                                 if (end != null && mtd.owner.equals(this.name) && Type.getArgumentsAndReturnSizes(node.desc) == Type.getArgumentsAndReturnSizes(mtd.desc))
-                                    bounce = new Bounce(new Method(mtd.owner, mtd.name, mtd.desc));
+                                    bounce = new Bounce(new MethodRef(mtd.owner, mtd.name, mtd.desc));
                             }
                         }
                     }
@@ -257,11 +257,11 @@ public class MappingToyJarMetaData {
                 this.force = value;
             }
 
-            public void setOverrides(Set<Method> value) {
+            public void setOverrides(Set<MethodRef> value) {
                 this.overrides = value.isEmpty() ? null : value;
             }
 
-            public Set<Method> getOverrides() {
+            public Set<MethodRef> getOverrides() {
                 return this.overrides == null ? Collections.emptySet() : this.overrides;
             }
 
@@ -281,57 +281,19 @@ public class MappingToyJarMetaData {
             public String toString() {
                 return Utils.getAccess(getAccess()) + ' ' + this.name + ' ' + this.desc;
             }
-
-
-        }
-    }
-
-    private static class Method implements Comparable<Method> {
-        private final String owner;
-        private final String name;
-        private final String desc;
-
-        private Method(String owner, String name, String desc) {
-            this.owner = owner;
-            this.name = name;
-            this.desc = desc;
-        }
-
-        @Override
-        public String toString() {
-            return this.owner + '/' + this.name + this.desc;
-        }
-
-        @Override
-        public int hashCode() {
-            return this.toString().hashCode();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            return o instanceof Method && o.toString().equals(toString());
-        }
-
-        private int compare(int a, int b) {
-            return a != 0 ? a : b;
-        }
-
-        @Override
-        public int compareTo(Method o) {
-            return compare(owner.compareTo(o.owner), compare(name.compareTo(o.name), desc.compareTo(o.desc)));
         }
     }
 
 
     private static class Bounce {
-        private final Method target;
-        private Method owner;
+        private final MethodRef target;
+        private MethodRef owner;
 
-        private Bounce(Method target) {
+        private Bounce(MethodRef target) {
             this.target = target;
         }
 
-        public void setOwner(Method value) {
+        public void setOwner(MethodRef value) {
             this.owner = value;
         }
 

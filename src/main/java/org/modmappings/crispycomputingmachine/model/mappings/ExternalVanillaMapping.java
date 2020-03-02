@@ -1,8 +1,10 @@
 package org.modmappings.crispycomputingmachine.model.mappings;
 
+import org.modmappings.crispycomputingmachine.utils.MethodRef;
+
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
+import java.util.Set;
 
 public class ExternalVanillaMapping {
 
@@ -21,10 +23,12 @@ public class ExternalVanillaMapping {
     private boolean isStatic;
     private String type;
     private String descriptor;
+    private String signature;
 
     private List<String> superClasses;
+    private Set<MethodRef> methodOverrides;
 
-    public ExternalVanillaMapping(final String input, final String output, final ExternalMappableType mappableType, final String gameVersion, final Date gameVersionReleaseDate, final String parentClassMapping, final String parentMethodMapping, final String parentMethodDescriptor, final ExternalVisibility visibility, final boolean isStatic, final String type, final String descriptor, final List<String> superClasses) {
+    public ExternalVanillaMapping(final String input, final String output, final ExternalMappableType mappableType, final String gameVersion, final Date gameVersionReleaseDate, final String parentClassMapping, final String parentMethodMapping, final String parentMethodDescriptor, final ExternalVisibility visibility, final boolean isStatic, final String type, final String descriptor, final String signature, final List<String> superClasses, final Set<MethodRef> methodOverrides) {
         this.input = input;
         this.output = output;
         this.mappableType = mappableType;
@@ -37,7 +41,9 @@ public class ExternalVanillaMapping {
         this.isStatic = isStatic;
         this.type = type;
         this.descriptor = descriptor;
+        this.signature = signature;
         this.superClasses = superClasses;
+        this.methodOverrides = methodOverrides;
     }
 
     public String getInput() {
@@ -88,8 +94,16 @@ public class ExternalVanillaMapping {
         return descriptor;
     }
 
+    public String getSignature() {
+        return signature;
+    }
+
     public List<String> getSuperClasses() {
         return superClasses;
+    }
+
+    public Set<MethodRef> getMethodOverrides() {
+        return methodOverrides;
     }
 
     @Override
@@ -117,7 +131,11 @@ public class ExternalVanillaMapping {
         if (getType() != null ? !getType().equals(mapping.getType()) : mapping.getType() != null) return false;
         if (getDescriptor() != null ? !getDescriptor().equals(mapping.getDescriptor()) : mapping.getDescriptor() != null)
             return false;
-        return getSuperClasses() != null ? getSuperClasses().equals(mapping.getSuperClasses()) : mapping.getSuperClasses() == null;
+        if (getSignature() != null ? !getSignature().equals(mapping.getSignature()) : mapping.getSignature() != null)
+            return false;
+        if (getSuperClasses() != null ? !getSuperClasses().equals(mapping.getSuperClasses()) : mapping.getSuperClasses() != null)
+            return false;
+        return getMethodOverrides() != null ? getMethodOverrides().equals(mapping.getMethodOverrides()) : mapping.getMethodOverrides() == null;
     }
 
     @Override
@@ -134,7 +152,9 @@ public class ExternalVanillaMapping {
         result = 31 * result + (isStatic() ? 1 : 0);
         result = 31 * result + (getType() != null ? getType().hashCode() : 0);
         result = 31 * result + (getDescriptor() != null ? getDescriptor().hashCode() : 0);
+        result = 31 * result + (getSignature() != null ? getSignature().hashCode() : 0);
         result = 31 * result + (getSuperClasses() != null ? getSuperClasses().hashCode() : 0);
+        result = 31 * result + (getMethodOverrides() != null ? getMethodOverrides().hashCode() : 0);
         return result;
     }
 }

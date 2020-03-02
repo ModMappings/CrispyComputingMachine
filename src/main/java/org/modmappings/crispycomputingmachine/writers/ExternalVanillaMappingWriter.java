@@ -7,6 +7,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableTyp
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.utils.CacheUtils;
 import org.modmappings.crispycomputingmachine.utils.Constants;
+import org.modmappings.crispycomputingmachine.utils.MethodRef;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.core.MappingTypeDMO;
 import org.modmappings.mmms.repository.model.core.release.ReleaseComponentDMO;
@@ -53,6 +54,9 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
         final MappingTypeDMO officialMappingType = getOfficialMappingType();
 
         items.forEach(evm -> {
+                    if (evm.getParentClassMapping() != null && evm.getParentClassMapping().equals("cwq$a"))
+                        System.out.println("Found it");
+
                     if (!CacheUtils.vanillaAlreadyExists(evm, mappingCacheManager))
                     {
                         mappablesToSave.put(evm, new MappableDMO(
@@ -154,6 +158,21 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                         );
                         inheritanceDataToSave.add(inheritanceData);
                     });
+                });
+
+        items.stream().filter(evm -> evm.getMappableType() == ExternalMappableType.METHOD)
+                .forEach(evm -> {
+                    final VersionedMappableDMO versionedMappable = versionedMappablesToSave.get(evm);
+
+                    for (final MethodRef method : evm.getMethodOverrides()) {
+                        final UUID overridenId = mappingCacheManager.getMethod(method.getName(), method.getOwner(), method.getDesc()).getVersionedMappableId();
+                        final InheritanceDataDMO inheritanceData = new InheritanceDataDMO(
+                                UUID.randomUUID(),
+                                overridenId,
+                                versionedMappable.getId()
+                        );
+                        inheritanceDataToSave.add(inheritanceData);
+                    }
                 });
 
         if (gameVersionsToSave.size() > 0)
@@ -288,7 +307,8 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                 externalVanillaMapping.getType(),
                 externalVanillaMapping.getParentClassMapping() == null ? null : mappingCacheManager.getClass(externalVanillaMapping.getParentClassMapping()).getVersionedMappableId(),
                 externalVanillaMapping.getDescriptor(),
-                externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethod(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodDescriptor()).getVersionedMappableId()
+                externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethod(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodDescriptor()).getVersionedMappableId(),
+                externalVanillaMapping.getSignature()
         );
     }
 
