@@ -47,11 +47,14 @@ public class MethodRef implements Comparable<MethodRef> {
 
     public MethodRef remap(final SRGUtilsWrappedMappingFile mappingFile)
     {
-        final IMappingFile.IClass classOfOwner =
+        final IMappingFile.IClass classOfOwner = mappingFile.findClassFromName(owner);
+
+        if (classOfOwner == null)
+            return this;
 
         return new MethodRef(
-                mappingFile.remapClass(owner),
-                mappingFile.findClassFromName(owner).remapMethod(name, desc),
+                classOfOwner.getMapped(),
+                classOfOwner.remapMethod(name, desc),
                 desc
         );
     }

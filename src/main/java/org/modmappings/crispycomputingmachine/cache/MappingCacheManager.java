@@ -165,6 +165,11 @@ public class MappingCacheManager {
         return this.outputCache.get(id);
     }
 
+    public List<MappingCacheEntry> getMethods()
+    {
+        return this.outputCache.values().stream().filter(mappingCacheEntry -> mappingCacheEntry.getMappableType() == MappableTypeDMO.METHOD).collect(Collectors.toList());
+    }
+
     public void registerNewGameVersion(final GameVersionDMO gameVersion) {
         this.gameVersionIdCache.put(gameVersion.getId(), gameVersion);
         this.gameVersionNameCache.put(gameVersion.getName(), gameVersion);

@@ -2,6 +2,7 @@ package org.modmappings.crispycomputingmachine.writers;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
 import org.modmappings.crispycomputingmachine.cache.MappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
@@ -160,12 +161,18 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     });
                 });
 
+
         items.stream().filter(evm -> evm.getMappableType() == ExternalMappableType.METHOD)
                 .forEach(evm -> {
                     final VersionedMappableDMO versionedMappable = versionedMappablesToSave.get(evm);
 
                     for (final MethodRef method : evm.getMethodOverrides()) {
-                        final UUID overridenId = mappingCacheManager.getMethod(method.getName(), method.getOwner(), method.getDesc()).getVersionedMappableId();
+                        final MappingCacheEntry overridenMethod = mappingCacheManager.getMethod(method.getName(), method.getOwner(), method.getDesc());
+                        if (overridenMethod == null)
+                            continue;
+
+                        final UUID overridenId = overridenMethod.getVersionedMappableId();
+
                         final InheritanceDataDMO inheritanceData = new InheritanceDataDMO(
                                 UUID.randomUUID(),
                                 overridenId,
@@ -287,6 +294,10 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                             .first()
                             .map(r -> mappingType))
                 ).block();
+    }
+
+    public MappingCacheManager getMappingCacheManager() {
+        return mappingCacheManager;
     }
 
     private static VersionedMappableDMO createVersionedMappable(

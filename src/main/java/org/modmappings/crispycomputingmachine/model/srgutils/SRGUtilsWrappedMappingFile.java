@@ -28,8 +28,6 @@ public class SRGUtilsWrappedMappingFile {
             ret = this.mappingFile.getClass(obfClassName);
             if (ret != null)
                 classCache.put(obfClassName, ret);
-            else
-                LOGGER.warn("Could not find class for name: " + obfClassName);
         }
 
         return ret;
