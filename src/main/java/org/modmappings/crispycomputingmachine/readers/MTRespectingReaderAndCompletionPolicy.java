@@ -1,22 +1,23 @@
 package org.modmappings.crispycomputingmachine.readers;
 
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.springframework.batch.item.*;
 import org.springframework.batch.repeat.RepeatContext;
 import org.springframework.batch.repeat.policy.SimpleCompletionPolicy;
 
-public class MTRespectingReaderAndCompletionPolicy extends SimpleCompletionPolicy implements ItemReader<ExternalVanillaMapping>, ItemStream {
+public class MTRespectingReaderAndCompletionPolicy<T extends ExternalMapping> extends SimpleCompletionPolicy implements ItemReader<T>, ItemStream {
 
-    private final ExternalVanillaMappingReader delegate;
+    private final PeekableItemReader<T> delegate;
 
-    private ExternalVanillaMapping currentReadItem = null;
+    private T currentReadItem = null;
 
-    public MTRespectingReaderAndCompletionPolicy(final ExternalVanillaMappingReader delegate) {
+    public MTRespectingReaderAndCompletionPolicy(final PeekableItemReader<T> delegate) {
         this.delegate = delegate;
     }
 
     @Override
-    public ExternalVanillaMapping read() throws UnexpectedInputException, ParseException, NonTransientResourceException, Exception {
+    public T read() throws UnexpectedInputException, ParseException, NonTransientResourceException, Exception {
         currentReadItem = delegate.read();
         return currentReadItem;
     }
@@ -28,17 +29,20 @@ public class MTRespectingReaderAndCompletionPolicy extends SimpleCompletionPolic
 
     @Override
     public void open(final ExecutionContext executionContext) throws ItemStreamException {
-        delegate.open(executionContext);
+        if (delegate instanceof ItemStream)
+            ((ItemStream) delegate).open(executionContext);
     }
 
     @Override
     public void update(final ExecutionContext executionContext) throws ItemStreamException {
-        delegate.update(executionContext);
+        if (delegate instanceof ItemStream)
+            ((ItemStream) delegate).update(executionContext);
     }
 
     @Override
     public void close() throws ItemStreamException {
-        delegate.close();
+        if (delegate instanceof ItemStream)
+            ((ItemStream) delegate).close();
     }
 
     protected class ComparisonPolicyTerminationContext extends SimpleTerminationContext {
@@ -49,7 +53,7 @@ public class MTRespectingReaderAndCompletionPolicy extends SimpleCompletionPolic
 
         @Override
         public boolean isComplete() {
-            final ExternalVanillaMapping nextReadItem;
+            final T nextReadItem;
             try {
                 nextReadItem = delegate.peek();
             } catch (Exception e) {

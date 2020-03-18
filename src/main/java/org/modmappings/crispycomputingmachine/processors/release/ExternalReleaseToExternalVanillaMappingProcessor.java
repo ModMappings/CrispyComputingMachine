@@ -1,5 +1,7 @@
 package org.modmappings.crispycomputingmachine.processors.release;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalClass;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
@@ -14,6 +16,8 @@ import java.util.stream.Collectors;
 
 @Component
 public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemProcessor<ExternalRelease, List<ExternalVanillaMapping>> {
+
+    private static final Logger LOGGER = LogManager.getLogger();
 
     @Override
     public List<ExternalVanillaMapping> process(final ExternalRelease item) throws Exception {
@@ -31,6 +35,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                             ExternalMappableType.CLASS,
                             item.getName(),
                             item.getReleasedOn(),
+                            item.getName(),
                             parentClassOutputMapping,
                             null,
                             null,
@@ -39,6 +44,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                             null,
                             null,
                             null,
+                            externalClass.isExternal(),
                             externalClass.getSuperClasses().stream().map(ExternalClass::getOutput).collect(Collectors.toList()),
                             new HashSet<>())
             );
@@ -49,6 +55,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     ExternalMappableType.METHOD,
                     item.getName(),
                     item.getReleasedOn(),
+                    item.getName(),
                     externalClass.getOutput(),
                     null,
                     null,
@@ -57,6 +64,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     null,
                     externalMethod.getDescriptor(),
                     externalMethod.getSignature(),
+                    externalMethod.isExternal(),
                     new ArrayList<>(),
                     externalMethod.getOverrides()))
                 .forEach(mappingsForVersion::add);
@@ -67,6 +75,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     ExternalMappableType.FIELD,
                     item.getName(),
                     item.getReleasedOn(),
+                    item.getName(),
                     externalClass.getOutput(),
                     null,
                     null,
@@ -74,7 +83,10 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     externalField.isStatic(),
                     externalField.getType(),
                     null,
-                    null, new ArrayList<>(), new HashSet<>()))
+                    null,
+                    false,
+                    new ArrayList<>(),
+                    new HashSet<>()))
             .forEach(mappingsForVersion::add);
 
             return mappingsForVersion.stream();

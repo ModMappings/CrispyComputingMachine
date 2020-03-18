@@ -3,11 +3,12 @@ package org.modmappings.crispycomputingmachine.writers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
-import org.modmappings.crispycomputingmachine.cache.MappingCacheManager;
+import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.utils.CacheUtils;
 import org.modmappings.crispycomputingmachine.utils.Constants;
+import org.modmappings.crispycomputingmachine.utils.GameVersionUtils;
 import org.modmappings.crispycomputingmachine.utils.MethodRef;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.core.MappingTypeDMO;
@@ -23,6 +24,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -36,9 +39,9 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
     private static final Logger LOGGER = LogManager.getLogger(ExternalVanillaMappingWriter.class);
 
     private final DatabaseClient databaseClient;
-    private final MappingCacheManager mappingCacheManager;
+    private final VanillaAndExternalMappingCacheManager mappingCacheManager;
 
-    public ExternalVanillaMappingWriter(final DatabaseClient databaseClient, final MappingCacheManager mappingCacheManager) {
+    public ExternalVanillaMappingWriter(final DatabaseClient databaseClient, final VanillaAndExternalMappingCacheManager mappingCacheManager) {
         this.databaseClient = databaseClient;
         this.mappingCacheManager = mappingCacheManager;
     }
@@ -46,19 +49,17 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
     @Override
     public void write(final List<? extends ExternalVanillaMapping> items) throws Exception {
         final Map<String, GameVersionDMO> gameVersionsToSave = new LinkedHashMap<>();
-        final Map<String, ReleaseDMO> releasesToSave = new LinkedHashMap<>();
+        final Map<Tuple2<UUID, String>, ReleaseDMO> releasesToSave = new LinkedHashMap<>();
         final Map<ExternalVanillaMapping, MappableDMO> mappablesToSave = new LinkedHashMap<>();
         final Map<ExternalVanillaMapping, VersionedMappableDMO> versionedMappablesToSave = new LinkedHashMap<>();
         final Map<ExternalVanillaMapping, MappingDMO> mappingsToSave = new LinkedHashMap<>();
         final Map<ExternalVanillaMapping, ReleaseComponentDMO> releaseComponentsToSave = new LinkedHashMap<>();
         final List<InheritanceDataDMO> inheritanceDataToSave = new LinkedList<>();
         final MappingTypeDMO officialMappingType = getOfficialMappingType();
+        final MappingTypeDMO externalMappingType = getExternalMappingType();
 
         items.forEach(evm -> {
-                    if (evm.getParentClassMapping() != null && evm.getParentClassMapping().equals("cwq$a"))
-                        System.out.println("Found it");
-
-                    if (!CacheUtils.vanillaAlreadyExists(evm, mappingCacheManager))
+                    if (!CacheUtils.alreadyExistsOnOutput(evm, mappingCacheManager))
                     {
                         mappablesToSave.put(evm, new MappableDMO(
                                 UUID.randomUUID(),
@@ -69,15 +70,18 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                         );
                     }
 
-                    final MappableDMO mappable = mappablesToSave.containsKey(evm) ? mappablesToSave.get(evm) : CacheUtils.getCachedMappable(evm, mappingCacheManager);
+                    final MappableDMO mappable = mappablesToSave.containsKey(evm) ? mappablesToSave.get(evm) : CacheUtils.getCachedMappableViaOutput(evm, mappingCacheManager);
 
                     GameVersionDMO gameVersion = gameVersionsToSave.containsKey(evm.getGameVersion()) ?
                             gameVersionsToSave.get(evm.getGameVersion()) :
                             mappingCacheManager.getGameVersion(evm.getGameVersion());
 
-                    ReleaseDMO release = releasesToSave.containsKey(evm.getGameVersion()) ?
-                            releasesToSave.get(evm.getGameVersion()) :
-                            mappingCacheManager.getRelease(evm.getGameVersion());
+                    ReleaseDMO officialMappingTypeRelease = releasesToSave.containsKey(Tuples.of(officialMappingType.getId(), evm.getGameVersion())) ?
+                            releasesToSave.get(Tuples.of(officialMappingType.getId(), evm.getGameVersion())) :
+                            mappingCacheManager.getRelease(officialMappingType.getId(), evm.getGameVersion());
+                    ReleaseDMO externalMappingTypeRelease = releasesToSave.containsKey(Tuples.of(externalMappingType.getId(), evm.getGameVersion())) ?
+                            releasesToSave.get(Tuples.of(externalMappingType.getId(), evm.getGameVersion())) :
+                            mappingCacheManager.getRelease(externalMappingType.getId(), evm.getGameVersion());
 
                     if (gameVersion == null)
                     {
@@ -86,27 +90,39 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                             Constants.SYSTEM_ID,
                             Timestamp.from(evm.getGameVersionReleaseDate().toInstant()),
                             evm.getGameVersion(),
-                            isPreRelease(evm.getGameVersion()),
-                            isSnapshot(evm.getGameVersion())
+                            GameVersionUtils.isPreRelease(evm.getGameVersion()),
+                            GameVersionUtils.isSnapshot(evm.getGameVersion())
                         );
                         gameVersionsToSave.put(evm.getGameVersion(), gameVersion);
 
-                        release = new ReleaseDMO(
+                        officialMappingTypeRelease = new ReleaseDMO(
                                 UUID.randomUUID(),
                                 Constants.SYSTEM_ID,
                                 Timestamp.from(evm.getGameVersionReleaseDate().toInstant()),
                                 evm.getGameVersion(),
                                 gameVersion.getId(),
                                 officialMappingType.getId(),
-                                isPreRelease(evm.getGameVersion()) || isSnapshot(evm.getGameVersion())
+                                GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion())
                         );
-                        releasesToSave.put(evm.getGameVersion(), release);
+                        externalMappingTypeRelease = new ReleaseDMO(
+                                UUID.randomUUID(),
+                                Constants.SYSTEM_ID,
+                                Timestamp.from(evm.getGameVersionReleaseDate().toInstant()),
+                                evm.getGameVersion(),
+                                gameVersion.getId(),
+                                externalMappingType.getId(),
+                                GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion())
+                        );
+                        releasesToSave.put(Tuples.of(officialMappingType.getId(), evm.getGameVersion()), officialMappingTypeRelease);
+                        releasesToSave.put(Tuples.of(externalMappingType.getId(), evm.getGameVersion()), externalMappingTypeRelease);
 
                         mappingCacheManager.registerNewGameVersion(gameVersion);
-                        mappingCacheManager.registerNewRelease(release);
+                        mappingCacheManager.registerNewRelease(officialMappingTypeRelease);
+                        mappingCacheManager.registerNewRelease(externalMappingTypeRelease);
                     }
 
-                    Assert.notNull(release, "Release could not be determined.... How can there be a game version without a release.");
+                    Assert.notNull(officialMappingTypeRelease, "Official Release could not be determined.... How can there be a game version without a officialMappingTypeRelease.");
+                    Assert.notNull(externalMappingTypeRelease, "External Release could not be determined.... How can there be a game version without a officialMappingTypeRelease.");
 
                     final VersionedMappableDMO versionedMappable = createVersionedMappable(
                             evm,
@@ -121,7 +137,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                             Constants.SYSTEM_ID,
                             Timestamp.from(Instant.now()),
                             versionedMappable.getId(),
-                            officialMappingType.getId(),
+                            evm.isExternal() ? externalMappingType.getId() : officialMappingType.getId(),
                             evm.getInput(),
                             evm.getOutput(),
                             "",
@@ -131,12 +147,10 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
                     final ReleaseComponentDMO releaseComponent = new ReleaseComponentDMO(
                             UUID.randomUUID(),
-                            release.getId(),
+                            evm.isExternal() ? externalMappingTypeRelease.getId() : officialMappingTypeRelease.getId(),
                             mapping.getId()
                     );
                     releaseComponentsToSave.put(evm, releaseComponent);
-
-
 
                     CacheUtils.registerNewEntry(
                             mappable,
@@ -151,7 +165,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     final VersionedMappableDMO versionedMappable = versionedMappablesToSave.get(evm);
 
                     evm.getSuperClasses().forEach(superMapping -> {
-                        final UUID superId = mappingCacheManager.getClass(superMapping).getVersionedMappableId();
+                        final UUID superId = mappingCacheManager.getClassViaOutput(superMapping).getVersionedMappableId();
                         final InheritanceDataDMO inheritanceData = new InheritanceDataDMO(
                                 UUID.randomUUID(),
                                 superId,
@@ -167,9 +181,11 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     final VersionedMappableDMO versionedMappable = versionedMappablesToSave.get(evm);
 
                     for (final MethodRef method : evm.getMethodOverrides()) {
-                        final MappingCacheEntry overridenMethod = mappingCacheManager.getMethod(method.getName(), method.getOwner(), method.getDesc());
-                        if (overridenMethod == null)
+                        final MappingCacheEntry overridenMethod = mappingCacheManager.getMethodViaOutput(method.getName(), method.getOwner(), method.getDesc());
+                        if (overridenMethod == null) {
+                            LOGGER.warn("No override information found for: " + method);
                             continue;
+                        }
 
                         final UUID overridenId = overridenMethod.getVersionedMappableId();
 
@@ -205,7 +221,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new releases from: " + gameVersionsToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new releases from: " + releasesToSave.size() + " local new instances");
         }
 
         if (mappablesToSave.size() > 0)
@@ -218,7 +234,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new mappables from: " + mappablesToSave.size() + " local new instances.");
+            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " mappables from: " + mappablesToSave.size() + " local new instances.");
         }
 
         if (versionedMappablesToSave.size() > 0)
@@ -235,7 +251,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .doOnError(error -> LOGGER.error("Failed to save: ", error))
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new versioned mappables from: " + versionedMappablesToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " versioned mappables from: " + versionedMappablesToSave.size() + " local new instances");
         }
 
         if (mappingsToSave.size() > 0)
@@ -248,7 +264,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new mappings from: " + mappingsToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " mappings from: " + mappingsToSave.size() + " local new instances");
         }
 
         if (releaseComponentsToSave.size() > 0)
@@ -261,7 +277,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new release component from: " + releaseComponentsToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " release component from: " + releaseComponentsToSave.size() + " local new instances");
         }
 
         if (inheritanceDataToSave.size() > 0)
@@ -274,7 +290,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new inheritance data entries from: " + inheritanceDataToSave.size() + " local new instances");
+            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " inheritance data entries from: " + inheritanceDataToSave.size() + " local new instances");
         }
 
 
@@ -296,7 +312,23 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                 ).block();
     }
 
-    public MappingCacheManager getMappingCacheManager() {
+    private MappingTypeDMO getExternalMappingType() {
+        return databaseClient.select()
+                .from(MappingTypeDMO.class)
+                .matching(Criteria.where("name").is(Constants.EXTERNAL_MAPPING_NAME))
+                .fetch()
+                .first()
+                .switchIfEmpty(Mono.just(new MappingTypeDMO(UUID.randomUUID(), Constants.SYSTEM_ID, Timestamp.from(Instant.now()), Constants.EXTERNAL_MAPPING_NAME, false, false, Constants.EXTERNAL_MAPPING_STATE_IN, Constants.EXTERNAL_MAPPING_STATE_OUT))
+                        .flatMap(mappingType -> databaseClient.insert()
+                                .into(MappingTypeDMO.class)
+                                .using(mappingType)
+                                .fetch()
+                                .first()
+                                .map(r -> mappingType))
+                ).block();
+    }
+
+    public VanillaAndExternalMappingCacheManager getMappingCacheManager() {
         return mappingCacheManager;
     }
 
@@ -304,7 +336,7 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
             final ExternalVanillaMapping externalVanillaMapping,
             final GameVersionDMO gameVersion,
             final MappableDMO mappable,
-            final MappingCacheManager mappingCacheManager
+            final VanillaAndExternalMappingCacheManager mappingCacheManager
     )
     {
         return new VersionedMappableDMO(
@@ -316,48 +348,12 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                 VisibilityDMO.valueOf(externalVanillaMapping.getVisibility().name()),
                 externalVanillaMapping.isStatic(),
                 externalVanillaMapping.getType(),
-                externalVanillaMapping.getParentClassMapping() == null ? null : mappingCacheManager.getClass(externalVanillaMapping.getParentClassMapping()).getVersionedMappableId(),
+                externalVanillaMapping.getParentClassMapping() == null ? null : mappingCacheManager.getClassViaOutput(externalVanillaMapping.getParentClassMapping()).getVersionedMappableId(),
                 externalVanillaMapping.getDescriptor(),
-                externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethod(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodDescriptor()).getVersionedMappableId(),
-                externalVanillaMapping.getSignature()
+                externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethodViaOutput(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodDescriptor()).getVersionedMappableId(),
+                externalVanillaMapping.getSignature(),
+                externalVanillaMapping.isExternal()
         );
     }
 
-    private static boolean isPreRelease(String version)
-    {
-        String lower = version.toLowerCase(Locale.ENGLISH);
-
-        if ("15w14a".equals(lower)) { //2015 April Fools
-            return false;
-        } else if ("1.rv-pre1".equals(lower)) { //2016 April Fools
-            return false;
-        } else if ("3d shareware v1.34".equals(lower)) { //2019 April Fools
-            return false;
-        } else if (lower.charAt(0) == 'b' || lower.charAt(0) == 'a') {
-            return false;
-        } else if (lower.length() == 6 && lower.charAt(2) == 'w') {
-            return false;
-        } else {
-            if (lower.contains("-pre")) {
-                return true;
-            } else if (lower.contains("_Pre-Release_".toLowerCase())) {
-                return true;
-            } else return lower.contains(" Pre-Release ".toLowerCase());
-        }
-    }
-
-    private static boolean isSnapshot(String version)
-    {
-        String lower = version.toLowerCase(Locale.ENGLISH);
-        switch (lower) {
-            case "15w14a":  //2015 April Fools
-                return true;
-            case "1.rv-pre1":  //2016 April Fools
-                return true;
-            case "3d shareware v1.34":  //2019 April Fools
-                return true;
-            default:
-                return lower.length() == 6 && lower.charAt(2) == 'w';
-        }
-    }
 }

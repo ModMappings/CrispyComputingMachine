@@ -31,6 +31,9 @@ public class DownloadMinecraftManifestTasklet implements Tasklet, InitializingBe
         Assert.state(workingDir.isDirectory(), "The working directory is not a directory: " + workingDir.getAbsolutePath());
 
         File manifestFile = new File(workingDir, Constants.MANIFEST_WORKING_FILE);
+        if (manifestFile.exists())
+            Assert.state(manifestFile.delete(), "Failed to delete the manifest file. It might be in use!");
+
         Utils.downloadFileEtag(manifestFile.toPath(), Constants.MANIFEST_DOWNLOAD_URL);
         return RepeatStatus.FINISHED;
     }

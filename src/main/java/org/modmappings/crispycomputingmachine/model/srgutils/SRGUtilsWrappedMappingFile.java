@@ -30,6 +30,46 @@ public class SRGUtilsWrappedMappingFile {
                 classCache.put(obfClassName, ret);
         }
 
+        if (ret == null)
+        {
+            return new IMappingFile.IClass() {
+                @Override
+                public Collection<? extends IMappingFile.IField> getFields() {
+                    return Collections.emptyList();
+                }
+
+                @Override
+                public Collection<? extends IMappingFile.IMethod> getMethods() {
+                    return Collections.emptyList();
+                }
+
+                @Override
+                public String remapField(final String field) {
+                    return field;
+                }
+
+                @Override
+                public String remapMethod(final String name, final String desc) {
+                    return name;
+                }
+
+                @Override
+                public String getOriginal() {
+                    return obfClassName;
+                }
+
+                @Override
+                public String getMapped() {
+                    return obfClassName;
+                }
+
+                @Override
+                public String write(final IMappingFile.Format format, final boolean reversed) {
+                    return obfClassName;
+                }
+            };
+        }
+
         return ret;
     }
 

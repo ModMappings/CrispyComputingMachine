@@ -1,6 +1,5 @@
-package org.modmappings.crispycomputingmachine.processors.version;
+package org.modmappings.crispycomputingmachine.processors.official;
 
-import net.minecraftforge.srgutils.MinecraftVersion;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
@@ -20,19 +19,15 @@ public class OfficialMappingPublishedVersionFilter implements ItemProcessor<Vers
 
     @Override
     public VersionsItem process(final VersionsItem item) throws Exception {
-        LOGGER.info("Checking if: " + item.getId() + " has a official mapping.");
-
         final Date date = Date.from(Instant.from(DateTimeFormatter.ISO_ZONED_DATE_TIME.parse(item.getReleaseTime())));
         final boolean hasMappings = date.compareTo(INITIAL_PUBLISH_DATE_OF_MAPPING) >= 0;
 
         if (!hasMappings)
         {
-            LOGGER.info("Skipping: " + item.toString() + ". No official mappings available.");
             return null;
         }
         else
         {
-            LOGGER.info("Potentially mappings are available for: " + item.toString());
             return item;
         }
     }

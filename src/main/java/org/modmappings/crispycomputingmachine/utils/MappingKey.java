@@ -40,6 +40,9 @@ public final class MappingKey {
 
     @Override
     public int hashCode() {
+        if (mapping == null)
+            throw new NullPointerException();
+
         int result = mapping.hashCode();
         result = 31 * result + mappingType.hashCode();
         result = 31 * result + (parentClassMapping != null ? parentClassMapping.hashCode() : 0);

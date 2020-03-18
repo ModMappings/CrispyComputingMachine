@@ -1,11 +1,13 @@
 package org.modmappings.crispycomputingmachine.config;
 
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
+import org.modmappings.crispycomputingmachine.processors.intermediary.*;
 import org.modmappings.crispycomputingmachine.processors.release.ExternalReleaseToExternalVanillaMappingProcessor;
 import org.modmappings.crispycomputingmachine.processors.release.ExternalVanillaMappingSorter;
-import org.modmappings.crispycomputingmachine.processors.version.*;
+import org.modmappings.crispycomputingmachine.processors.official.*;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.support.CompositeItemProcessor;
 import org.springframework.context.annotation.Bean;
@@ -18,10 +20,31 @@ import java.util.List;
 public class ProcessorConfiguration {
 
     @Bean
+    public CompositeItemProcessor<String, List<ExternalMapping>> internalIntermediaryMappingReaderProcessor(
+            final ConfigurationIntermediaryMappingMinecraftVersionFilter configurationIntermediaryMappingMinecraftVersionFilter,
+            final ExistingIntermediaryMappingMinecraftVersionFilter existingIntermediaryMappingMinecraftVersionFilter,
+            final IntermediaryMappingsDownloader intermediaryMappingsDownloader,
+            final IntermediaryMappingFileExtractor fileExtractor,
+            final IntermediaryMappingsExtractor mappingsExtractor
+    ) {
+        final CompositeItemProcessor<String, List<ExternalMapping>> compositeItemProcessor = new CompositeItemProcessor<>();
+        final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();
+
+        processors.add(configurationIntermediaryMappingMinecraftVersionFilter);
+        processors.add(existingIntermediaryMappingMinecraftVersionFilter);
+        processors.add(intermediaryMappingsDownloader);
+        processors.add(mappingsExtractor);
+        processors.add(fileExtractor);
+        compositeItemProcessor.setDelegates(processors);
+
+        return compositeItemProcessor;
+    }
+
+    @Bean
     public CompositeItemProcessor<VersionsItem, ExternalRelease> performMinecraftVersionImportProcessor(
             final OfficialMappingPublishedVersionFilter officialMappingPublishedVersionFilter,
-            final ConfigurationBasedMinecraftVersionFilter configurationBasedMinecraftVersionFilter,
-            final ExistingMinecraftVersionFilter existingMinecraftVersionFilter,
+            final ConfigurationBasedOfficialMappingMinecraftVersionFilter configurationBasedMinecraftVersionFilter,
+            final ExistingOfficialMappingMinecraftVersionFilter existingMinecraftVersionFilter,
             final MappingToyInformationExtractor mappingToyInformationExtractor,
             final MTToMMInfoConverter mtToMMInfoConverter
     ) {

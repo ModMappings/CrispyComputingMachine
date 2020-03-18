@@ -14,16 +14,18 @@ public class ExternalMethod {
 
     private final String descriptor;
     private final String signature;
+    private final boolean isExternal;
 
     private final Set<MethodRef> overrides;
 
-    public ExternalMethod(final String input, final String output, final ExternalVisibility externalVisibility, final boolean isStatic, final String descriptor, final String signature, final Set<MethodRef> overrides) {
+    public ExternalMethod(final String input, final String output, final ExternalVisibility externalVisibility, final boolean isStatic, final String descriptor, final String signature, final boolean isExternal, final Set<MethodRef> overrides) {
         this.input = input;
         this.output = output;
         this.externalVisibility = externalVisibility;
         this.isStatic = isStatic;
         this.descriptor = descriptor;
         this.signature = signature;
+        this.isExternal = isExternal;
         this.overrides = overrides;
     }
 
@@ -51,7 +53,12 @@ public class ExternalMethod {
         return signature;
     }
 
+    public boolean isExternal() {
+        return isExternal;
+    }
+
     public Set<MethodRef> getOverrides() {
         return overrides;
     }
+
 }

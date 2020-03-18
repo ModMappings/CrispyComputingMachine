@@ -1,12 +1,9 @@
-package org.modmappings.crispycomputingmachine.processors.version;
+package org.modmappings.crispycomputingmachine.processors.official;
 
 import com.google.gson.reflect.TypeToken;
 import net.minecraftforge.lex.mappingtoy.MappingToy;
 import net.minecraftforge.lex.mappingtoy.Utils;
 import net.minecraftforge.srgutils.IMappingFile;
-import net.minecraftforge.srgutils.MinecraftVersion;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
@@ -26,14 +23,11 @@ import java.util.*;
 @Component
 public class MappingToyInformationExtractor implements ItemProcessor<VersionsItem, MappingToyData>, InitializingBean {
 
-    private static final Logger LOGGER = LogManager.getLogger(MappingToyInformationExtractor.class);
-
     @Value("${importer.directories.working:file:working}")
     Resource workingDirectory;
 
     @Override
     public MappingToyData process(final VersionsItem item) throws Exception {
-        LOGGER.info("Processing Version with MappingToy: " + item.getId());
         final File workingDir = new File(workingDirectory.getFile().getAbsolutePath());
         Assert.state(workingDir.exists(), "The working directory does not exist: " + workingDir.getAbsolutePath());
         Assert.state(workingDir.isDirectory(), "The working directory is not a directory: " + workingDir.getAbsolutePath());
@@ -59,7 +53,6 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
         mappingToyArgs.add(item.getId());
         mappingToyArgs.add("--force");
 
-        LOGGER.info("Executing MappingToy for: " + item.getId());
         //Invoke mapping toy.
         MappingToy.main(mappingToyArgs.toArray(new String[0]));
 
@@ -71,19 +64,16 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
         if (!metadataFile.exists())
         {
             //Seems like something went wrong.
-            LOGGER.warn("Failed to execute mapping toy. Metadata is missing for: " + item.getId());
             return null;
         }
 
         if (!mappingDataFile.exists())
         {
             //Again this file is needed.
-            LOGGER.warn("Failed to execute mapping toy. Mapping data is missing for: " + item.getId());
             return null;
         }
 
         try (InputStream in = Files.newInputStream(metadataFile.toPath())) {
-            LOGGER.warn("Mapping Toy completed for: " + item.getId());
             Map<String, MappingToyJarMetaData.ClassInfo> resultData = Utils.GSON.fromJson(new InputStreamReader(in), new TypeToken<TreeMap<String, MappingToyJarMetaData.ClassInfo>>(){}.getType());
             return new MappingToyData(resultData, item, IMappingFile.load(mappingDataFile));
         }

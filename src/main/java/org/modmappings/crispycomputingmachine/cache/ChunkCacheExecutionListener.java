@@ -7,13 +7,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class ChunkCacheExecutionListener implements ChunkListener {
 
-    private final MappingCacheManager mappingCacheManager;
+    private final VanillaAndExternalMappingCacheManager mappingCacheManager;
 
-    public ChunkCacheExecutionListener(final MappingCacheManager mappingCacheManager) {
+    public ChunkCacheExecutionListener(final VanillaAndExternalMappingCacheManager mappingCacheManager) {
         this.mappingCacheManager = mappingCacheManager;
     }
 
-    public MappingCacheManager getMappingCacheManager() {
+    public VanillaAndExternalMappingCacheManager getMappingCacheManager() {
         return mappingCacheManager;
     }
 

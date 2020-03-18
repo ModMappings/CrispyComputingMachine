@@ -18,7 +18,6 @@ public class JobConfiguration {
 
     @Bean
     public Job importMinecraftVersionsJob(
-            final Step deleteWorkingDirectory,
             final Step downloadManifestVersion,
             final Step performMinecraftVersionImport
     )
@@ -26,9 +25,22 @@ public class JobConfiguration {
         return jobBuilderFactory.get("importMinecraftVersionsJob")
                 .preventRestart()
                 .incrementer(new RunIdIncrementer())
-                .start(deleteWorkingDirectory)
-                .next(downloadManifestVersion)
+                .start(downloadManifestVersion)
                 .next(performMinecraftVersionImport)
+                .build();
+    }
+
+    @Bean
+    public Job importIntermediaryJob(
+            final Step downloadIntermediaryMavenMetadataVersion,
+            final Step performIntermediaryImport
+    )
+    {
+        return jobBuilderFactory.get("importIntermediaryJob")
+                .preventRestart()
+                .incrementer(new RunIdIncrementer())
+                .start(downloadIntermediaryMavenMetadataVersion)
+                .next(performIntermediaryImport)
                 .build();
     }
 }

@@ -24,11 +24,22 @@ repositories {
     maven { url 'https://files.minecraftforge.net/maven' }
 }
 
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/main/java'
+        }
+        resources {
+            srcDirs 'src/main/reserouces'
+        }
+    }
+}
+
 dependencies {
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
 
-    implementation 'org.modmappings.mmms:repository:0.1.0-308.gd8131db'
-    implementation 'org.modmappings.mmms:er2dbc:0.1.0-308.gd8131db'
+    implementation 'org.modmappings.mmms:repository:0.1.0-311.g340b62c'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-311.g340b62c'
 
     implementation 'com.google.guava:guava:28.2-jre'
 
@@ -57,7 +68,9 @@ dependencies {
         exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
     }
 
+
     annotationProcessor group: 'org.springframework.boot', name: 'spring-boot-configuration-processor'
+    implementation 'org.jetbrains:annotations:15.0'
 }
 
 dependencyManagement {

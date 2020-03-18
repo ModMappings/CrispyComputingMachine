@@ -16,8 +16,9 @@ public class ExternalClass {
     private boolean isAbstract;
     private boolean isInterface;
     private boolean isEnum;
+    private boolean isExternal;
 
-    public ExternalClass(final String input, final String output, final Set<ExternalClass> superClasses, final Set<ExternalMethod> methods, final Set<ExternalField> fields, final ExternalVisibility visibility, final boolean isStatic, final boolean isAbstract, final boolean isInterface, final boolean isEnum) {
+    public ExternalClass(final String input, final String output, final Set<ExternalClass> superClasses, final Set<ExternalMethod> methods, final Set<ExternalField> fields, final ExternalVisibility visibility, final boolean isStatic, final boolean isAbstract, final boolean isInterface, final boolean isEnum, final boolean isExternal) {
         this.input = input;
         this.output = output;
         this.superClasses = superClasses;
@@ -28,6 +29,7 @@ public class ExternalClass {
         this.isAbstract = isAbstract;
         this.isInterface = isInterface;
         this.isEnum = isEnum;
+        this.isExternal = isExternal;
     }
 
     public String getInput() {
@@ -69,4 +71,6 @@ public class ExternalClass {
     public boolean isEnum() {
         return isEnum;
     }
+
+    public boolean isExternal() { return isExternal; }
 }
