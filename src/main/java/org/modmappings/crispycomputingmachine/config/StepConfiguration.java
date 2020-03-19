@@ -1,6 +1,8 @@
 package org.modmappings.crispycomputingmachine.config;
 
 import org.modmappings.crispycomputingmachine.cache.ChunkCacheExecutionListener;
+import org.modmappings.crispycomputingmachine.cache.IntermediaryMappingCacheManager;
+import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.readers.IntermediaryMappingReader;
 import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
@@ -49,7 +51,7 @@ public class StepConfiguration {
     public Step performMinecraftVersionImport(
             final ExternalVanillaMappingReader reader,
             final ExternalVanillaMappingWriter writer,
-            final ChunkCacheExecutionListener listener
+            final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager
             )
     {
         final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
@@ -59,7 +61,7 @@ public class StepConfiguration {
                 .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
                 .reader(policyReader)
                 .writer(writer)
-                .listener(listener)
+                .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager))
                 .build();
     }
 
@@ -67,8 +69,9 @@ public class StepConfiguration {
     public Step performIntermediaryImport(
             final IntermediaryMappingReader reader,
             final IntermediaryMappingWriter writer,
-            final ChunkCacheExecutionListener listener
-    )
+            final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager,
+            final IntermediaryMappingCacheManager intermediaryMappingCacheManager
+            )
     {
         final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
 
@@ -77,7 +80,7 @@ public class StepConfiguration {
                 .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
                 .reader(policyReader)
                 .writer(writer)
-                .listener(listener)
+                .listener(new ChunkCacheExecutionListener(intermediaryMappingCacheManager, vanillaAndExternalMappingCacheManager))
                 .build();
     }
 }

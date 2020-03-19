@@ -81,7 +81,7 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
 
             final MappableDMO mappable = CacheUtils.getCachedMappableViaInput(evm, vanillaAndExternalMappingCacheManager);
 
-            GameVersionDMO gameVersion = vanillaAndExternalMappingCacheManager.getGameVersion(evm.getGameVersion());
+            GameVersionDMO gameVersion = targetChainCacheManager.getGameVersion(evm.getGameVersion());
 
             ReleaseDMO release = releasesToSave.containsKey(Tuples.of(mappingType.getId(), evm.getGameVersion())) ?
                     releasesToSave.get(Tuples.of(mappingType.getId(), evm.getGameVersion())) :
