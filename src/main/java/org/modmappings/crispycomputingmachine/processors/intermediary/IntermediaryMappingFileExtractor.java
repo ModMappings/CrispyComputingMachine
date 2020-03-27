@@ -94,14 +94,14 @@ public class IntermediaryMappingFileExtractor implements ItemProcessor<String, L
                         return new ExternalMapping(
                                 components[3],
                                 components[4],
-                                ExternalMappableType.FIELD,
+                                ExternalMappableType.METHOD,
                                 item,
                                 item,
                                 parentClassOut,
                                 null,
                                 null,
-                                components[2],
                                 null,
+                                components[2],
                                 null
                         );
                     }).collect(Collectors.toList());

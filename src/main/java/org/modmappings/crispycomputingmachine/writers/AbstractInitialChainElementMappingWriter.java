@@ -27,10 +27,7 @@ import reactor.util.function.Tuples;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 
 public abstract class AbstractInitialChainElementMappingWriter implements ItemWriter<ExternalMapping> {
@@ -66,6 +63,8 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
         final Map<ExternalMapping, MappingDMO> mappingsToSave = new LinkedHashMap<>();
         final Map<ExternalMapping, ReleaseComponentDMO> releaseComponentsToSave = new LinkedHashMap<>();
 
+        final Set<ReleaseDMO> releasesToUpdate = new HashSet<>();
+
         if (items.isEmpty())
             return;
 
@@ -73,19 +72,19 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
         final Map<UUID, VersionedMappableDMO> versionedMappables = getVersionedMappablesForGameVersion(first.getGameVersion());
 
         items.forEach(evm -> {
-            if (!CacheUtils.alreadyExistsOnInput(evm, vanillaAndExternalMappingCacheManager))
+            if (!CacheUtils.alreadyExistsOnInput(evm, vanillaAndExternalMappingCacheManager, targetChainCacheManager))
             {
                 LOGGER.warn("Could not find a vanilla mapping for: " + evm);
                 return;
             }
 
-            final MappableDMO mappable = CacheUtils.getCachedMappableViaInput(evm, vanillaAndExternalMappingCacheManager);
+            final MappableDMO mappable = CacheUtils.getCachedMappableViaInput(evm, vanillaAndExternalMappingCacheManager, targetChainCacheManager);
 
             GameVersionDMO gameVersion = targetChainCacheManager.getGameVersion(evm.getGameVersion());
 
-            ReleaseDMO release = releasesToSave.containsKey(Tuples.of(mappingType.getId(), evm.getGameVersion())) ?
-                    releasesToSave.get(Tuples.of(mappingType.getId(), evm.getGameVersion())) :
-                    targetChainCacheManager.getRelease(mappingType.getId(), evm.getGameVersion());
+            ReleaseDMO release = releasesToSave.containsKey(Tuples.of(mappingType.getId(), evm.getReleaseName())) ?
+                    releasesToSave.get(Tuples.of(mappingType.getId(), evm.getReleaseName())) :
+                    targetChainCacheManager.getRelease(mappingType.getId(), evm.getReleaseName());
 
             if (release == null)
             {
@@ -96,16 +95,22 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                         evm.getGameVersion(),
                         gameVersion.getId(),
                         mappingType.getId(),
-                        GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion())
+                        GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
+                        "new"
                 );
+
+                releasesToSave.put(Tuples.of(mappingType.getId(), evm.getReleaseName()), release);
                 targetChainCacheManager.registerNewRelease(release);
             }
 
             Assert.notNull(release, "Release could not be determined.... How can there be a game version without a release.");
 
+            releasesToUpdate.add(release);
+
             final UUID vanillaVersionedMappableId = CacheUtils.getInputMappingCacheEntry(
                     evm,
-                    vanillaAndExternalMappingCacheManager
+                    vanillaAndExternalMappingCacheManager,
+                    targetChainCacheManager
             ).getVersionedMappableId();
 
             final MappingDMO mapping = new MappingDMO(
@@ -136,6 +141,19 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
             );
         });
 
+        if (releasesToSave.size() > 0)
+        {
+            final Long rowsUpdated = databaseClient.insert()
+                    .into(ReleaseDMO.class)
+                    .using(Flux.fromIterable(releasesToSave.values()))
+                    .fetch()
+                    .all()
+                    .count()
+                    .block();
+
+            LOGGER.warn(String.format("Created: %d new releases from: %d local new instances of: %s mappings", rowsUpdated, releasesToSave.size(), mappingName));
+        }
+
         if (mappingsToSave.size() > 0)
         {
             final Long rowsUpdated = databaseClient.insert()
@@ -146,7 +164,7 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " mappings from: " + mappingsToSave.size() + " local new instances");
+            LOGGER.warn(String.format("Created: %d new %s mappings from: %d local new instances of: %s mappings", rowsUpdated, items.get(0).getMappableType().name().toLowerCase(), mappingsToSave.size(), mappingName));
         }
 
         if (releaseComponentsToSave.size() > 0)
@@ -159,8 +177,19 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                     .count()
                     .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " release component from: " + releaseComponentsToSave.size() + " local new instances");
+            LOGGER.warn(String.format("Created: %d new %s release component from: %d local new instances of: %s mappings", rowsUpdated, items.get(0).getMappableType().name().toLowerCase(), releaseComponentsToSave.size(), mappingName));
         }
+
+        releasesToUpdate.forEach(release -> {
+            release.setState(items.get(0).getMappableType().name().toLowerCase());
+
+            databaseClient.update()
+                    .table(ReleaseDMO.class)
+                    .using(release)
+                    .fetch()
+                    .rowsUpdated()
+                    .block();
+        });
     }
 
     protected abstract boolean shouldCorrectVanilla();

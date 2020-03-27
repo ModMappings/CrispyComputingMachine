@@ -1,6 +1,11 @@
 package org.modmappings.crispycomputingmachine.processors.intermediary;
 
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
+import org.modmappings.crispycomputingmachine.utils.Constants;
+import org.modmappings.crispycomputingmachine.utils.RegexUtils;
 import org.modmappings.mmms.repository.repositories.core.gameversions.GameVersionRepository;
+import org.modmappings.mmms.repository.repositories.core.mappingtypes.MappingTypeRepository;
+import org.modmappings.mmms.repository.repositories.core.releases.release.ReleaseRepository;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -11,17 +16,31 @@ import java.util.function.Function;
 public class ExistingIntermediaryMappingMinecraftVersionFilter implements ItemProcessor<String, String> {
 
     private final GameVersionRepository gameVersionRepository;
+    private final ReleaseRepository releaseRepository;
+    private final MappingTypeRepository mappingTypeRepository;
 
-    public ExistingIntermediaryMappingMinecraftVersionFilter(final GameVersionRepository gameVersionRepository) {
+    public ExistingIntermediaryMappingMinecraftVersionFilter(final GameVersionRepository gameVersionRepository,
+                                                             final ReleaseRepository releaseRepository,
+                                                             final MappingTypeRepository mappingTypeRepository) {
         this.gameVersionRepository = gameVersionRepository;
+        this.releaseRepository = releaseRepository;
+        this.mappingTypeRepository = mappingTypeRepository;
     }
 
     @Override
-    public String process(final String item) throws Exception {
-        return gameVersionRepository.findAllBy("\\A" + item.replace(".", "\\.") + "\\Z", null, null, Pageable.unpaged())
+    public String process(final String item) {
+        return gameVersionRepository.findAllBy(RegexUtils.createFullWordRegex(item.replace(".", "\\.")), null, null, Pageable.unpaged()) //Validate a game version exists.
                 .flatMapIterable(Function.identity())
                 .next()
-                .hasElement()
-                .block() ? item : null;
+                .flatMap(gameVersion -> mappingTypeRepository.findAllBy(RegexUtils.createFullWordRegex(Constants.OFFICIAL_MAPPING_NAME), null, false, Pageable.unpaged()) //Validate the official mapping type exists.
+                        .flatMapIterable(Function.identity())
+                        .next()
+                        .flatMap(mappingType -> releaseRepository.findAllBy(RegexUtils.createFullWordRegex(item.replace(".", "\\.")), gameVersion.getId(), mappingType.getId(), null, null, null, false, Pageable.unpaged()) //Now check if the official release has reached the field stage, meaning that its import completed.
+                                .flatMapIterable(Function.identity())
+                                .next()
+                                .filter(releaseDMO -> releaseDMO.getState().equals(ExternalMappableType.FIELD.toString().toLowerCase()))))
+                .map(r -> item)
+                .blockOptional()
+                .orElse(null);
     }
 }

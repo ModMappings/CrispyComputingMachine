@@ -58,6 +58,11 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
         final MappingTypeDMO officialMappingType = getOfficialMappingType();
         final MappingTypeDMO externalMappingType = getExternalMappingType();
 
+        final Set<ReleaseDMO> releasesToUpdate = new HashSet<>();
+
+        if (items.isEmpty())
+            return;
+
         items.forEach(evm -> {
                     if (!CacheUtils.alreadyExistsOnOutput(evm, mappingCacheManager))
                     {
@@ -102,7 +107,8 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                                 evm.getGameVersion(),
                                 gameVersion.getId(),
                                 officialMappingType.getId(),
-                                GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion())
+                                GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
+                                "new"
                         );
                         externalMappingTypeRelease = new ReleaseDMO(
                                 UUID.randomUUID(),
@@ -111,7 +117,8 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                                 evm.getGameVersion(),
                                 gameVersion.getId(),
                                 externalMappingType.getId(),
-                                GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion())
+                                GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
+                                "new"
                         );
                         releasesToSave.put(Tuples.of(officialMappingType.getId(), evm.getGameVersion()), officialMappingTypeRelease);
                         releasesToSave.put(Tuples.of(externalMappingType.getId(), evm.getGameVersion()), externalMappingTypeRelease);
@@ -123,6 +130,9 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
 
                     Assert.notNull(officialMappingTypeRelease, "Official Release could not be determined.... How can there be a game version without a officialMappingTypeRelease.");
                     Assert.notNull(externalMappingTypeRelease, "External Release could not be determined.... How can there be a game version without a officialMappingTypeRelease.");
+
+                    releasesToUpdate.add(officialMappingTypeRelease);
+                    releasesToUpdate.add(externalMappingTypeRelease);
 
                     final VersionedMappableDMO versionedMappable = createVersionedMappable(
                             evm,
@@ -293,7 +303,16 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
             LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " inheritance data entries from: " + inheritanceDataToSave.size() + " local new instances");
         }
 
+        releasesToUpdate.forEach(release -> {
+            release.setState(items.get(0).getMappableType().name().toLowerCase());
 
+            databaseClient.update()
+                    .table(ReleaseDMO.class)
+                    .using(release)
+                    .fetch()
+                    .rowsUpdated()
+                    .block();
+        });
     }
 
     private MappingTypeDMO getOfficialMappingType() {

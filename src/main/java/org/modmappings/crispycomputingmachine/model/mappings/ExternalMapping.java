@@ -120,4 +120,12 @@ public class ExternalMapping {
         result = 31 * result + (getSignature() != null ? getSignature().hashCode() : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "ExternalMapping{" +
+                "input='" + input + '\'' +
+                ", output='" + output + '\'' +
+                '}';
+    }
 }
