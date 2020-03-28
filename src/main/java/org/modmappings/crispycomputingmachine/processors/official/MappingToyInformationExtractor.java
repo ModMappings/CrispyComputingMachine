@@ -59,7 +59,7 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
         final File versionedMapDataDirectory = new File(mapDataDirectory, item.getId());
 
         final File metadataFile = new File(versionedMapDataDirectory, "joined_a_meta.json");
-        final File mappingDataFile = new File(versionedMapDataDirectory, "joined_o_to_n.tsrg");
+        final File clientMappingFile = new File(versionedMapDataDirectory, "client.txt");
 
         if (!metadataFile.exists())
         {
@@ -67,7 +67,7 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
             return null;
         }
 
-        if (!mappingDataFile.exists())
+        if (!clientMappingFile.exists())
         {
             //Again this file is needed.
             return null;
@@ -75,7 +75,7 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
 
         try (InputStream in = Files.newInputStream(metadataFile.toPath())) {
             Map<String, MappingToyJarMetaData.ClassInfo> resultData = Utils.GSON.fromJson(new InputStreamReader(in), new TypeToken<TreeMap<String, MappingToyJarMetaData.ClassInfo>>(){}.getType());
-            return new MappingToyData(resultData, item, IMappingFile.load(mappingDataFile));
+            return new MappingToyData(resultData, item, IMappingFile.load(clientMappingFile).reverse());
         }
     }
 

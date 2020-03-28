@@ -33,6 +33,10 @@ public class SchedulerConfig {
     @Value("${importer.intermediary.schedule:15 */1 * * * ?}")
     String intermediarySchedule;
 
+    @Value("${importer.mcpconfig.schedule:15 */1 * * * ?}")
+    String mcpConfigSchedule;
+
+
     public SchedulerConfig(JobLauncher jobLauncher, final JobLocator jobLocator) {
         this.jobLauncher = jobLauncher;
         this.jobLocator = jobLocator;
@@ -111,6 +115,38 @@ public class SchedulerConfig {
     }
 
     @Bean
+    public JobDetail importMCPConfigJobDetail() {
+        //Set Job data map
+        JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap.put("jobName", "importMCPConfigJob");
+        jobDataMap.put("jobLauncher", jobLauncher);
+        jobDataMap.put("jobLocator", jobLocator);
+
+        return JobBuilder.newJob(CCMQuartzJob.class)
+                .withIdentity("importMCPConfigJob")
+                .setJobData(jobDataMap)
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger importMCPConfigJobTrigger(
+            final JobDetail importMCPConfigJobDetail
+    )
+    {
+        final CronScheduleBuilder cronScheduleBuilder = CronScheduleBuilder.cronSchedule(mcpConfigSchedule)
+                .withMisfireHandlingInstructionIgnoreMisfires()
+                .inTimeZone(TimeZone.getDefault());
+
+        return TriggerBuilder
+                .newTrigger()
+                .forJob(importMCPConfigJobDetail)
+                .withIdentity("importMCPConfigJobTrigger")
+                .withSchedule(cronScheduleBuilder)
+                .build();
+    }
+
+    @Bean
     public SchedulerFactoryBean importMinecraftScheduler(
             final JobDetail importMinecraftVersionsJobDetail,
             final Trigger importMinecraftVersionsJobTrigger,
@@ -136,6 +172,20 @@ public class SchedulerConfig {
         scheduler.setTriggers(importIntermediaryJobTrigger);
         scheduler.setQuartzProperties(quartzProperties);
         scheduler.setJobDetails(importIntermediaryJobDetail);
+        return scheduler;
+    }
+
+    @Bean
+    public SchedulerFactoryBean importMCPConfigScheduler(
+            final JobDetail importMCPConfigJobDetail,
+            final Trigger importMCPConfigJobTrigger,
+            final Properties quartzProperties
+    ) throws IOException
+    {
+        SchedulerFactoryBean scheduler = new SchedulerFactoryBean();
+        scheduler.setTriggers(importMCPConfigJobTrigger);
+        scheduler.setQuartzProperties(quartzProperties);
+        scheduler.setJobDetails(importMCPConfigJobDetail);
         return scheduler;
     }
 

@@ -5,6 +5,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.processors.intermediary.*;
+import org.modmappings.crispycomputingmachine.processors.mcpconfig.*;
 import org.modmappings.crispycomputingmachine.processors.release.ExternalReleaseToExternalVanillaMappingProcessor;
 import org.modmappings.crispycomputingmachine.processors.release.ExternalVanillaMappingSorter;
 import org.modmappings.crispycomputingmachine.processors.official.*;
@@ -19,6 +20,27 @@ import java.util.List;
 @Configuration
 public class ProcessorConfiguration {
 
+    @Bean
+    public CompositeItemProcessor<String, List<ExternalMapping>> internalMCPConfigMappingReaderProcessor(
+            final ConfigurationMCPConfigMappingMinecraftVersionFilter configurationMCPConfigMappingMinecraftVersionFilter,
+            final ExistingMCPConfigMappingMinecraftVersionFilter existingMCPConfigMappingMinecraftVersionFilter,
+            final MCPConfigMappingsDownloader mCPConfigMappingsDownloader,
+            final MCPConfigMappingFileExtractor fileExtractor,
+            final MCPConfigMappingsExtractor mappingsExtractor
+    ) {
+        final CompositeItemProcessor<String, List<ExternalMapping>> compositeItemProcessor = new CompositeItemProcessor<>();
+        final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();
+
+        processors.add(configurationMCPConfigMappingMinecraftVersionFilter);
+        processors.add(existingMCPConfigMappingMinecraftVersionFilter);
+        processors.add(mCPConfigMappingsDownloader);
+        processors.add(mappingsExtractor);
+        processors.add(fileExtractor);
+        compositeItemProcessor.setDelegates(processors);
+
+        return compositeItemProcessor;
+    }
+    
     @Bean
     public CompositeItemProcessor<String, List<ExternalMapping>> internalIntermediaryMappingReaderProcessor(
             final ConfigurationIntermediaryMappingMinecraftVersionFilter configurationIntermediaryMappingMinecraftVersionFilter,

@@ -22,6 +22,10 @@ public class SRGUtilsWrappedMappingFile {
         return this.mappingFile.remapClass(obfName);
     }
 
+    public IMappingFile getMappingFile() {
+        return mappingFile;
+    }
+
     public IMappingFile.IClass findClassFromName(final String obfClassName) {
         IMappingFile.IClass ret = classCache.get(obfClassName);
         if (ret == null) {

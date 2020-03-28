@@ -44,6 +44,9 @@ public final class CacheUtils {
     public static MappableDMO getCachedMappableViaOutput(final ExternalMapping externalMapping, final AbstractMappingCacheManager mappingCacheManager)
     {
         final MappingCacheEntry entry = getOutputMappingCacheEntry(externalMapping, mappingCacheManager);
+        if (entry == null)
+            return null;
+
         return mappingCacheManager.getMappable(entry.getMappableId());
     }
 
@@ -73,14 +76,26 @@ public final class CacheUtils {
                 entry = targetCacheManager.getFieldViaInput(externalMapping.getInput(), targetFieldParentClassOutput, externalMapping.getType());
                 break;
             case PARAMETER:
-                /*final String parentParameterClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
-                final String targetParameterParentClassOutput = targetCacheManager.getClassViaInput(parentParameterClassInput).getOutput();
+                entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getType());
+                break;
+        }
+        return entry;
+    }
 
-                final String parentParameterMethodInput = parentRemappingManager.getMethodViaInput(externalMapping.getParentClassMapping()).getInput();
-                final String targetParameterParentMethodOutput = targetCacheManager.getClassViaInput(parentParameterClassInput).getOutput();
-*/
-
-                //TODO: Figure out how to handle method descriptors when importing damn parameters.
+    public static MappingCacheEntry getInputMappingCacheEntry(final ExternalMapping externalMapping, final AbstractMappingCacheManager targetCacheManager) {
+        MappingCacheEntry entry = null;
+        switch (externalMapping.getMappableType())
+        {
+            case CLASS:
+                entry = targetCacheManager.getClassViaInput(externalMapping.getInput());
+                break;
+            case METHOD:
+                entry = targetCacheManager.getMethodViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getDescriptor());
+                break;
+            case FIELD:
+                entry = targetCacheManager.getFieldViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getType());
+                break;
+            case PARAMETER:
                 entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getType());
                 break;
         }
@@ -90,6 +105,16 @@ public final class CacheUtils {
     public static MappableDMO getCachedMappableViaInput(final ExternalMapping externalMapping, final AbstractMappingCacheManager mappingCacheManager, final AbstractMappingCacheManager parentRemappingManager)
     {
         final MappingCacheEntry entry = getInputMappingCacheEntry(externalMapping, mappingCacheManager, parentRemappingManager);
+        if (entry == null)
+            return null;
+        return mappingCacheManager.getMappable(entry.getMappableId());
+    }
+
+    public static MappableDMO getCachedMappableViaInput(final ExternalMapping externalMapping, final AbstractMappingCacheManager mappingCacheManager)
+    {
+        final MappingCacheEntry entry = getInputMappingCacheEntry(externalMapping, mappingCacheManager);
+        if (entry == null)
+            return null;
         return mappingCacheManager.getMappable(entry.getMappableId());
     }
 

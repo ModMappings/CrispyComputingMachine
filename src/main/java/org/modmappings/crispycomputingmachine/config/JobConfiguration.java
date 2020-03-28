@@ -43,4 +43,18 @@ public class JobConfiguration {
                 .next(performIntermediaryImport)
                 .build();
     }
+
+    @Bean
+    public Job importMCPConfigJob(
+            final Step downloadMCPConfigMavenMetadataVersion,
+            final Step performMCPConfigImport
+    )
+    {
+        return jobBuilderFactory.get("importMCPConfigJob")
+                .preventRestart()
+                .incrementer(new RunIdIncrementer())
+                .start(downloadMCPConfigMavenMetadataVersion)
+                .next(performMCPConfigImport)
+                .build();
+    }
 }

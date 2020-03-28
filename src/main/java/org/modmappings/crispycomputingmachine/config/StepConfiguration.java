@@ -2,16 +2,20 @@ package org.modmappings.crispycomputingmachine.config;
 
 import org.modmappings.crispycomputingmachine.cache.ChunkCacheExecutionListener;
 import org.modmappings.crispycomputingmachine.cache.IntermediaryMappingCacheManager;
+import org.modmappings.crispycomputingmachine.cache.MCPConfigMappingCacheManager;
 import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.readers.IntermediaryMappingReader;
 import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
+import org.modmappings.crispycomputingmachine.readers.MCPConfigMappingReader;
 import org.modmappings.crispycomputingmachine.readers.MTRespectingReaderAndCompletionPolicy;
 import org.modmappings.crispycomputingmachine.tasks.DownloadIntermediaryManifestTasklet;
+import org.modmappings.crispycomputingmachine.tasks.DownloadMCPConfigManifestTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMinecraftManifestTasklet;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.modmappings.crispycomputingmachine.writers.ExternalVanillaMappingWriter;
 import org.modmappings.crispycomputingmachine.writers.IntermediaryMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.MCPConfigMappingWriter;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.context.annotation.Bean;
@@ -46,7 +50,16 @@ public class StepConfiguration {
                 .build();
     }
 
-
+    @Bean
+    public Step downloadMCPConfigMavenMetadataVersion(
+            final DownloadMCPConfigManifestTasklet downloadMCPConfigManifestTasklet
+    )
+    {
+        return stepBuilderFactory.get(Constants.DOWNLOAD_MCPCONFIG_MAVEN_METADATA_STEP_NAME)
+                .tasklet(downloadMCPConfigManifestTasklet)
+                .build();
+    }
+        
     @Bean
     public Step performMinecraftVersionImport(
             final ExternalVanillaMappingReader reader,
@@ -81,6 +94,25 @@ public class StepConfiguration {
                 .reader(policyReader)
                 .writer(writer)
                 .listener(new ChunkCacheExecutionListener(intermediaryMappingCacheManager, vanillaAndExternalMappingCacheManager))
+                .build();
+    }
+
+    @Bean
+    public Step performMCPConfigImport(
+            final MCPConfigMappingReader reader,
+            final MCPConfigMappingWriter writer,
+            final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager,
+            final MCPConfigMappingCacheManager mcpConfigMappingCacheManager
+    )
+    {
+        final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
+
+        return stepBuilderFactory
+                .get(Constants.IMPORT_MCPCONFIG_MAPPINGS)
+                .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
+                .reader(policyReader)
+                .writer(writer)
+                .listener(new ChunkCacheExecutionListener(mcpConfigMappingCacheManager, vanillaAndExternalMappingCacheManager))
                 .build();
     }
 }

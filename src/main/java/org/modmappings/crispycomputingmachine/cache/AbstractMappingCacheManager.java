@@ -54,6 +54,13 @@ public abstract class AbstractMappingCacheManager {
         if (mappingTypeIds.isEmpty())
             return;
 
+        this.gameVersionIdCache = this.databaseClient.select().from(GameVersionDMO.class).fetch().all()
+                .collectMap(GameVersionDMO::getId)
+                .block();
+
+        this.gameVersionNameCache = this.gameVersionIdCache.values().stream()
+                .collect(Collectors.toMap(GameVersionDMO::getName, Function.identity()));
+
         final String mappingTypeFilterQueryComponent =
                 mappingTypeIds.stream()
                         .map(id -> "m.mapping_type_id = '" + id + "'")
@@ -119,13 +126,6 @@ public abstract class AbstractMappingCacheManager {
         this.versionedMappableIdFieldCache = this.outputCache.values().stream()
                 .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
-
-        this.gameVersionIdCache = this.databaseClient.select().from(GameVersionDMO.class).fetch().all()
-                .collectMap(GameVersionDMO::getId)
-                .block();
-
-        this.gameVersionNameCache = this.gameVersionIdCache.values().stream()
-                .collect(Collectors.toMap(GameVersionDMO::getName, Function.identity()));
 
         final String mappingTypeReleaseQueryComponent =
                 mappingTypeIds.stream()

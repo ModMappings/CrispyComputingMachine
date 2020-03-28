@@ -1,5 +1,6 @@
 package org.modmappings.crispycomputingmachine.processors.official;
 
+import net.minecraftforge.srgutils.IMappingFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
@@ -56,6 +58,33 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                     );
                 }
         );
+
+        //This deals with marker interfaces.
+        item.getMergedMappingData().getMappingFile().getClasses().parallelStream()
+                .filter(cls -> cls.getFields().isEmpty() && cls.getMethods().isEmpty())
+                .forEach(cls -> {
+                    final ExternalClass clz = new ExternalClass(
+                            cls.getOriginal(),
+                            cls.getMapped(),
+                            new HashSet<>(),
+                            new HashSet<>(),
+                            new HashSet<>(),
+                            ExternalVisibility.PUBLIC,
+                            false,
+                            false,
+                            true,
+                            false,
+                            false);
+
+                    inputToClassMappingData.put(
+                            clz.getInput(),
+                            clz
+                    );
+                    outputToClassMappingData.put(
+                            clz.getOutput(),
+                            clz
+                    );
+                });
 
         item.getMappingToyData().entrySet().stream()
                 .filter(e -> !e.getKey().startsWith("net/minecraftforge"))
@@ -120,12 +149,16 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                             ).collect(Collectors.toList())
                     );
 
+                    final IMappingFile.IClass mappingClass = item.getMergedMappingData().findClassFromName(obfClassName);
+                    final Map<String, IMappingFile.IField> fields = mappingClass.getFields().stream()
+                            .collect(Collectors.toMap(IMappingFile.INode::getOriginal, Function.identity()));
+
                     target.getFields().addAll(
                             classData.getFields().entrySet().stream().map(
                                     (entry) -> new ExternalField(
                                             entry.getKey(),
                                             item.getMergedMappingData().findClassFromName(obfClassName).remapField(entry.getKey()),
-                                            entry.getValue().getSignature(),
+                                            fields.get(entry.getKey()).getDescriptor(),
                                             toVisibility(entry.getValue()),
                                             entry.getValue().isStatic())
                             ).collect(Collectors.toList())

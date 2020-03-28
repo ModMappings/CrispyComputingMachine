@@ -34,7 +34,7 @@ public final class MappingKey {
             return false;
         if (!Objects.equals(parentMethodMapping, that.parentMethodMapping))
             return false;
-        if (!Objects.equals(type, that.type)) return false;
+        if (!Objects.equals(type, "*") && !Objects.equals(that.type, "*") && !Objects.equals(type, that.type)) return false;
         return Objects.equals(descriptor, that.descriptor);
     }
 
@@ -47,7 +47,7 @@ public final class MappingKey {
         result = 31 * result + mappingType.hashCode();
         result = 31 * result + (parentClassMapping != null ? parentClassMapping.hashCode() : 0);
         result = 31 * result + (parentMethodMapping != null ? parentMethodMapping.hashCode() : 0);
-        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (type != null && !Objects.equals(type, "*") ? type.hashCode() : 0);
         result = 31 * result + (descriptor != null ? descriptor.hashCode() : 0);
         return result;
     }
