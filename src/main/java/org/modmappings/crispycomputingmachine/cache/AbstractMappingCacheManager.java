@@ -260,6 +260,10 @@ public abstract class AbstractMappingCacheManager {
                 null,
                 descriptor
         );
+
+        if (this.inputCache.get(id) == null)
+            return null;
+
         return this.inputCache.get(id);
     }
 
@@ -272,6 +276,10 @@ public abstract class AbstractMappingCacheManager {
                 type,
                 null
         );
+
+        if (this.inputCache.get(id) == null)
+            return null;
+
         return this.inputCache.get(id);
     }
 
@@ -470,5 +478,10 @@ public abstract class AbstractMappingCacheManager {
                                         .map(r -> mappingType))
                 )
                 .map(MappingTypeDMO::getId).blockOptional().orElse(null);
+    }
+
+    public List<MappingKey> getInputKeysInClass(final String parentClass)
+    {
+        return this.inputCache.keySet().stream().filter(k -> (k.getParentClassMapping() == null && parentClass == null) || (k.getParentClassMapping() != null && k.getParentClassMapping().equals(parentClass))).collect(Collectors.toList());
     }
 }

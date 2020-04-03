@@ -31,18 +31,37 @@ public class ExistingMCPConfigMappingMinecraftVersionFilter implements ItemProce
     public String process(final String item) {
         final String gameVersionName = item.split("-")[0];
 
-        return gameVersionRepository.findAllBy(RegexUtils.createFullWordRegex(gameVersionName.replace(".", "\\.")), null, null, Pageable.unpaged()) //Validate a game version exists.
+        final boolean isVanillaReady = gameVersionRepository.findAllBy(RegexUtils.createFullWordRegex(gameVersionName.replace(".", "\\.")), null, null, Pageable.unpaged()) //Validate a game version exists.
                 .flatMapIterable(Function.identity())
                 .next()
                 .flatMap(gameVersion -> mappingTypeRepository.findAllBy(RegexUtils.createFullWordRegex(Constants.OFFICIAL_MAPPING_NAME), null, false, Pageable.unpaged()) //Validate the official mapping type exists.
                         .flatMapIterable(Function.identity())
                         .next()
-                        .flatMap(mappingType -> releaseRepository.findAllBy(RegexUtils.createFullWordRegex(gameVersionName.replace(".", "\\.")), gameVersion.getId(), mappingType.getId(), null, null, null, false, Pageable.unpaged()) //Now check if the official release has reached the field stage, meaning that its import completed.
+                        .flatMap(mappingType -> releaseRepository.findAllBy(RegexUtils.createFullWordRegex(item.replace(".", "\\.")), gameVersion.getId(), mappingType.getId(), null, null, null, false, Pageable.unpaged()) //Now check if the official release has reached the field stage, meaning that its import completed.
                                 .flatMapIterable(Function.identity())
                                 .next()
                                 .filter(releaseDMO -> releaseDMO.getState().equals(ExternalMappableType.FIELD.toString().toLowerCase()))))
-                .map(r -> item)
                 .blockOptional()
-                .orElse(null);
+                .isPresent();
+
+        if (!isVanillaReady)
+            return null;
+
+        final boolean isAlreadyImported = gameVersionRepository.findAllBy(RegexUtils.createFullWordRegex(gameVersionName.replace(".", "\\.")), null, null, Pageable.unpaged()) //Validate a game version exists.
+                .flatMapIterable(Function.identity())
+                .next()
+                .flatMap(gameVersion -> mappingTypeRepository.findAllBy(RegexUtils.createFullWordRegex(Constants.MCP_CONFIG_MAPPING_NAME), null, false, Pageable.unpaged()) //Validate the official mapping type exists.
+                        .flatMapIterable(Function.identity())
+                        .next()
+                        .flatMap(mappingType -> releaseRepository.findAllBy(RegexUtils.createFullWordRegex(item.replace(".", "\\.")), gameVersion.getId(), mappingType.getId(), null, null, null, false, Pageable.unpaged()) //Now check if the official release has reached the field stage, meaning that its import completed.
+                                .flatMapIterable(Function.identity())
+                                .next()))
+                .blockOptional()
+                .isPresent();
+
+        if (isAlreadyImported)
+            return null;
+
+        return item;
     }
 }

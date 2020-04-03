@@ -47,8 +47,31 @@ public final class MappingKey {
         result = 31 * result + mappingType.hashCode();
         result = 31 * result + (parentClassMapping != null ? parentClassMapping.hashCode() : 0);
         result = 31 * result + (parentMethodMapping != null ? parentMethodMapping.hashCode() : 0);
-        result = 31 * result + (type != null && !Objects.equals(type, "*") ? type.hashCode() : 0);
         result = 31 * result + (descriptor != null ? descriptor.hashCode() : 0);
         return result;
+    }
+
+    public String getMapping() {
+        return mapping;
+    }
+
+    public MappableTypeDMO getMappingType() {
+        return mappingType;
+    }
+
+    public String getParentClassMapping() {
+        return parentClassMapping;
+    }
+
+    public String getParentMethodMapping() {
+        return parentMethodMapping;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getDescriptor() {
+        return descriptor;
     }
 }
