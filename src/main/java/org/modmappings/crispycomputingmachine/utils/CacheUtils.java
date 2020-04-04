@@ -9,6 +9,9 @@ import org.modmappings.mmms.repository.model.mapping.mappable.MappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.VersionedMappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappings.MappingDMO;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 public final class CacheUtils {
 
     private CacheUtils() {
@@ -140,5 +143,38 @@ public final class CacheUtils {
                 mappingCacheManager.registerNewParameter(mappable, versionedMappable, mapping);
                 break;
         }
+    }
+
+    public static String remapDescriptorFromOutputToInput(
+            final String desc,
+            final AbstractMappingCacheManager mappingCacheManager
+    )
+    {
+        final MethodDesc methodDesc = new MethodDesc(desc);
+        final List<String> remappedArgs = methodDesc.getArgs().stream().map(arg -> remapToInput(arg, mappingCacheManager)).collect(Collectors.toList());
+        final String remappedReturnType = remapToInput(methodDesc.getReturnType(), mappingCacheManager);
+
+        return "(" + String.join("", remappedArgs) + ")" + remappedReturnType;
+    }
+
+    private static String remapToInput(
+            final String clz,
+            final AbstractMappingCacheManager mappingCacheManager
+    )
+    {
+        if (clz.length() == 1)
+            return clz; //Early bail out for primitives.
+
+        if (clz.startsWith("["))
+            return "[" + remapToInput(clz.substring(1), mappingCacheManager); //Handles arrays.
+
+        if (clz.startsWith("L"))
+            return "L" + remapToInput(clz.substring(1), mappingCacheManager); // Handles class prefixes.
+
+        final MappingCacheEntry entry = mappingCacheManager.getClassViaOutput(clz);
+        if (entry == null)
+            return clz;
+
+        return entry.getInput();
     }
 }

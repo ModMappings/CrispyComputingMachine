@@ -294,6 +294,14 @@ public abstract class AbstractMappingCacheManager {
         );
         return this.inputCache.get(id);
     }
+
+    public Map<MappingKey, MappingCacheEntry> getAllInClassFromInput(final String classOutput) {
+        return this.inputCache.keySet().stream().filter(mappingKey -> mappingKey.getParentClassMapping() != null && mappingKey.getParentClassMapping().equals(classOutput))
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        key -> this.inputCache.get(key)
+                ));
+    }
     
     public void registerNewGameVersion(final GameVersionDMO gameVersion) {
         this.gameVersionIdCache.put(gameVersion.getId(), gameVersion);
