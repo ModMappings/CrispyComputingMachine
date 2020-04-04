@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.processors.base.parsing;
+package org.modmappings.crispycomputingmachine.processors.base.parsing.simple;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -20,7 +20,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public abstract class AbstractMappingParsingProcessor implements ItemProcessor<String, List<ExternalMapping>> {
+public abstract class AbstractSimpleMappingParsingProcessor implements ItemProcessor<String, List<ExternalMapping>> {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -28,13 +28,13 @@ public abstract class AbstractMappingParsingProcessor implements ItemProcessor<S
     Resource workingDirectory;
 
     private final Function<String, List<Path>> pathsExtractor;
-    private final IClassParser classParser;
-    private final IMethodParser methodParser;
-    private final IFieldParser fieldParser;
-    private final IParameterParser parameterParser;
+    private final ISimpleClassParser classParser;
+    private final ISimpleMethodParser methodParser;
+    private final ISimpleFieldParser fieldParser;
+    private final ISimpleParameterParser parameterParser;
     private final String mappingTypeName;
 
-    protected AbstractMappingParsingProcessor(final Function<String, List<Path>> pathsExtractor, final IClassParser classParser, final IMethodParser methodParser, final IFieldParser fieldParser, final IParameterParser parameterParser, final String mappingTypeName) {
+    protected AbstractSimpleMappingParsingProcessor(final Function<String, List<Path>> pathsExtractor, final ISimpleClassParser classParser, final ISimpleMethodParser methodParser, final ISimpleFieldParser fieldParser, final ISimpleParameterParser parameterParser, final String mappingTypeName) {
         this.pathsExtractor = pathsExtractor;
         this.classParser = classParser;
         this.methodParser = methodParser;

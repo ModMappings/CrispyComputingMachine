@@ -15,7 +15,7 @@ public class IntermediaryDownloadingProcessor extends AbstractDownloadingProcess
                     try {
                         return new URL(Constants.INTERMEDIARY_MAPPING_REPO + release + "/intermediary-" + release + ".jar");
                     } catch (MalformedURLException e) {
-                        throw new IllegalArgumentException(release);
+                        throw new IllegalArgumentException(release, e);
                     }
                 },
                 Constants.INTERMEDIARY_JAR,

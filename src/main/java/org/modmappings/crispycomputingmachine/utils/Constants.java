@@ -48,6 +48,8 @@ public final class Constants {
     public static final String INTERMEDIARY_WORKING_DIR = "intermediary";
 
     public static final String MCP_CONFIG_MAPPING_REPO = "https://files.minecraftforge.net/maven/de/oceanlabs/mcp/mcp_config/";
+    public static final String MCP_CONFIG_ZIP = "mcp-config.zip";
+    public static final String MCP_CONFIG_WORKING_DIR = "mcp_config";
 
     static {
         try {

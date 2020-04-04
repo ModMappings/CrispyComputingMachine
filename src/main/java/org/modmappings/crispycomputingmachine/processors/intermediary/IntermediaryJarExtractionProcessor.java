@@ -1,13 +1,13 @@
 package org.modmappings.crispycomputingmachine.processors.intermediary;
 
-import org.modmappings.crispycomputingmachine.processors.base.AbstractZipExtractor;
+import org.modmappings.crispycomputingmachine.processors.base.AbstractZipExtractionProcessor;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.springframework.stereotype.Component;
 
 @Component
-public class IntermediaryMappingsExtractor extends AbstractZipExtractor {
+public class IntermediaryJarExtractionProcessor extends AbstractZipExtractionProcessor {
 
-    protected IntermediaryMappingsExtractor() {
+    protected IntermediaryJarExtractionProcessor() {
         super(
                 Constants.INTERMEDIARY_JAR,
                 Constants.INTERMEDIARY_WORKING_DIR,

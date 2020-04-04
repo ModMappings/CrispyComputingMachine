@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.processors.base.parsing;
+package org.modmappings.crispycomputingmachine.processors.base.parsing.simple;
 
 import org.jetbrains.annotations.NotNull;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
@@ -7,12 +7,12 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 @FunctionalInterface
-public interface IFieldParser {
+public interface ISimpleMethodParser {
 
     @Nullable
     ExternalMapping parse(@NotNull final Map<String, ExternalMapping> classes, @NotNull final String line, final String releaseName);
 
-    IFieldParser NOOP = new IFieldParser() {
+    ISimpleMethodParser NOOP = new ISimpleMethodParser() {
         @Nullable
         @Override
         public ExternalMapping parse(final @NotNull Map<String, ExternalMapping> classes, final @NotNull String line, final String releaseName) {

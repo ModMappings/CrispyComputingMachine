@@ -3,27 +3,19 @@ package org.modmappings.crispycomputingmachine.processors.intermediary;
 import com.google.common.collect.Lists;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
-import org.modmappings.crispycomputingmachine.processors.base.parsing.*;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.AbstractContextualMappingParsingProcessor;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParameterParser;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.AbstractSimpleMappingParsingProcessor;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.ISimpleParameterParser;
 import org.modmappings.crispycomputingmachine.utils.Constants;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Component
-public class IntermediaryMappingFileExtractor extends AbstractMappingParsingProcessor {
+public class IntermediaryMappingParsingProcessor extends AbstractContextualMappingParsingProcessor {
 
-    protected IntermediaryMappingFileExtractor() {
+    protected IntermediaryMappingParsingProcessor() {
         super(
                 (releaseName) -> Lists.newArrayList(Paths.get(Constants.INTERMEDIARY_WORKING_DIR, "mappings", "mappings.tiny")),
                 (line, releaseName) -> {
@@ -49,13 +41,13 @@ public class IntermediaryMappingFileExtractor extends AbstractMappingParsingProc
                             null
                     );
                 },
-                (classes, line, releaseName) -> {
+                (parentClass, line, releaseName) -> {
                     if (!line.startsWith("METHOD"))
                         return null;
 
                     final String[] components = line.split("\t");
 
-                    final String parentClassOut = classes.get(components[1]).getOutput();
+                    final String parentClassOut = parentClass.getOutput();
 
                     return new ExternalMapping(
                             components[3],
@@ -70,13 +62,13 @@ public class IntermediaryMappingFileExtractor extends AbstractMappingParsingProc
                             components[2],
                             null);
                 },
-                (classes, line, releaseName) -> {
+                (parentClass, line, releaseName) -> {
                     if (!line.startsWith("FIELD"))
                         return null;
 
                     final String[] components = line.split("\t");
 
-                    final String parentClassOut = classes.get(components[1]).getOutput();
+                    final String parentClassOut = parentClass.getOutput();
 
                     return new ExternalMapping(
                             components[3],
@@ -92,7 +84,7 @@ public class IntermediaryMappingFileExtractor extends AbstractMappingParsingProc
                             null
                     );
                 },
-                IParameterParser.NOOP,
+                IContextualParameterParser.NOOP,
                 Constants.INTERMEDIARY_MAPPING_NAME
         );
     }

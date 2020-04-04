@@ -1,11 +1,10 @@
-package org.modmappings.crispycomputingmachine.processors.mcpconfig;
+package org.modmappings.crispycomputingmachine.processors.base;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,12 +13,21 @@ import java.io.IOException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-@Component
-public class MCPConfigMappingsExtractor implements ItemProcessor<String, String> {
+public abstract class AbstractZipExtractionProcessor implements ItemProcessor<String, String> {
     private static final Logger LOGGER = LogManager.getLogger();
+
+    private final String fileName;
+    private final String targetDirectory;
+    private final String mappingTypeName;
 
     @Value("${importer.directories.working:file:working}")
     Resource workingDirectory;
+
+    protected AbstractZipExtractionProcessor(final String fileName, final String targetDirectory, final String mappingTypeName) {
+        this.fileName = fileName;
+        this.targetDirectory = targetDirectory;
+        this.mappingTypeName = mappingTypeName;
+    }
 
     @Override
     public String process(final String item) throws Exception {
@@ -28,8 +36,8 @@ public class MCPConfigMappingsExtractor implements ItemProcessor<String, String>
             workingDirectoryFile.mkdirs();
             final File versionWorkingDirectory = new File(workingDirectoryFile, item);
             versionWorkingDirectory.mkdirs();
-            final File mappingJarFile = new File(versionWorkingDirectory, "mcp-config.zip");
-            final File unzippingMappingJarTarget = new File(versionWorkingDirectory, "mcp-config");
+            final File mappingJarFile = new File(versionWorkingDirectory, fileName);
+            final File unzippingMappingJarTarget = new File(versionWorkingDirectory, targetDirectory);
             unzippingMappingJarTarget.mkdirs();
 
             byte[] buffer = new byte[1024];
@@ -60,7 +68,7 @@ public class MCPConfigMappingsExtractor implements ItemProcessor<String, String>
 
             return item;
         } catch (Exception e) {
-            LOGGER.warn("Failed to extract the mcp-config jar for: " + item, e);
+            LOGGER.warn(String.format("Failed to extract the %s jar for: %s", mappingTypeName, item), e);
             return null;
         }
     }

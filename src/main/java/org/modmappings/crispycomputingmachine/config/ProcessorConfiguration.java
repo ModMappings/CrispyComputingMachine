@@ -22,11 +22,11 @@ public class ProcessorConfiguration {
 
     @Bean
     public CompositeItemProcessor<String, List<ExternalMapping>> internalMCPConfigMappingReaderProcessor(
-            final ConfigurationMCPConfigMappingMinecraftVersionFilter configurationMCPConfigMappingMinecraftVersionFilter,
-            final ExistingMCPConfigMappingMinecraftVersionFilter existingMCPConfigMappingMinecraftVersionFilter,
-            final MCPConfigMappingsDownloader mCPConfigMappingsDownloader,
-            final MCPConfigMappingFileExtractor fileExtractor,
-            final MCPConfigMappingsExtractor mappingsExtractor
+            final MCPConfigConfigGameVersionFilter configurationMCPConfigMappingMinecraftVersionFilter,
+            final MCPConfigSkipIfOfficialNotReadyFilter existingMCPConfigMappingMinecraftVersionFilter,
+            final MCPConfigDownloadingProcessor mCPConfigMappingsDownloader,
+            final MCPConfigMappingParsingProcessor fileExtractor,
+            final MCPConfigZipExtractionProcessor mappingsExtractor
     ) {
         final CompositeItemProcessor<String, List<ExternalMapping>> compositeItemProcessor = new CompositeItemProcessor<>();
         final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();
@@ -47,8 +47,8 @@ public class ProcessorConfiguration {
             final IntermediarySkipIfOfficialNotReadyFilter existingIntermediaryMappingMinecraftVersionFilter,
             final IntermediarySkipIfReleaseExistsFilter skipIfReleaseExistsFilter,
             final IntermediaryDownloadingProcessor intermediaryMappingsDownloader,
-            final IntermediaryMappingFileExtractor fileExtractor,
-            final IntermediaryMappingsExtractor mappingsExtractor
+            final IntermediaryMappingParsingProcessor fileExtractor,
+            final IntermediaryJarExtractionProcessor mappingsExtractor
     ) {
         final CompositeItemProcessor<String, List<ExternalMapping>> compositeItemProcessor = new CompositeItemProcessor<>();
         final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();
