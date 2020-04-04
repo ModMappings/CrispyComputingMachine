@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.readers;
+package org.modmappings.crispycomputingmachine.readers.minecraft;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
@@ -13,14 +13,12 @@ import org.springframework.batch.item.*;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.batch.item.support.CompositeItemProcessor;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import java.io.File;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 

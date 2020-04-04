@@ -30,7 +30,7 @@ public class DownloadMCPConfigManifestTasklet implements Tasklet, InitializingBe
         }
         Assert.state(workingDir.isDirectory(), "The working directory is not a directory: " + workingDir.getAbsolutePath());
 
-        File manifestFile = new File(workingDir, Constants.MCPCONFIG_MAVEN_METADATA_FILE);
+        File manifestFile = new File(workingDir, Constants.MCP_CONFIG_MAVEN_METADATA_FILE);
         if (manifestFile.exists())
             Assert.state(manifestFile.delete(), "Failed to delete the MCPConfig maven metadata file. It might be in use.");
 

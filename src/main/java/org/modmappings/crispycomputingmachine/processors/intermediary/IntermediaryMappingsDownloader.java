@@ -2,7 +2,6 @@ package org.modmappings.crispycomputingmachine.processors.intermediary;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,10 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 @Component

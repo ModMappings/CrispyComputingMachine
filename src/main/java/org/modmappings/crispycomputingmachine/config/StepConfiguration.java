@@ -5,10 +5,10 @@ import org.modmappings.crispycomputingmachine.cache.IntermediaryMappingCacheMana
 import org.modmappings.crispycomputingmachine.cache.MCPConfigMappingCacheManager;
 import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
-import org.modmappings.crispycomputingmachine.readers.IntermediaryMappingReader;
-import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
-import org.modmappings.crispycomputingmachine.readers.MCPConfigMappingReader;
-import org.modmappings.crispycomputingmachine.readers.MTRespectingReaderAndCompletionPolicy;
+import org.modmappings.crispycomputingmachine.readers.mappings.IntermediaryMappingReader;
+import org.modmappings.crispycomputingmachine.readers.minecraft.ExternalVanillaMappingReader;
+import org.modmappings.crispycomputingmachine.readers.mappings.MCPConfigMappingReader;
+import org.modmappings.crispycomputingmachine.readers.policies.completion.MTRespectingReaderAndCompletionPolicy;
 import org.modmappings.crispycomputingmachine.tasks.DownloadIntermediaryManifestTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMCPConfigManifestTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMinecraftManifestTasklet;

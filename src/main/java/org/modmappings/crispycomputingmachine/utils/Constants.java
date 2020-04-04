@@ -25,7 +25,7 @@ public final class Constants {
 
     public static final String MANIFEST_WORKING_FILE = "version_manifest.json";
     public static final String INTERMEDIARY_MAVEN_METADATA_FILE = "intermediary-maven-metadata.xml";
-    public static final String MCPCONFIG_MAVEN_METADATA_FILE = "mcpconfig-maven-metadata.xml";
+    public static final String MCP_CONFIG_MAVEN_METADATA_FILE = "mcpconfig-maven-metadata.xml";
 
     public static final String OFFICIAL_MAPPING_NAME = "Official";
     public static final String OFFICIAL_MAPPING_STATE_IN = "Obfuscated";

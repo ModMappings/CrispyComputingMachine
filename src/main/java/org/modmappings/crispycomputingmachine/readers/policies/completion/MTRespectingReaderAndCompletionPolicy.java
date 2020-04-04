@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.readers;
+package org.modmappings.crispycomputingmachine.readers.policies.completion;
 
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;

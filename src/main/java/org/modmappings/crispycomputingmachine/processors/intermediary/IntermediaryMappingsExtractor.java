@@ -2,17 +2,12 @@ package org.modmappings.crispycomputingmachine.processors.intermediary;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.modmappings.crispycomputingmachine.readers.ExternalVanillaMappingReader;
-import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
