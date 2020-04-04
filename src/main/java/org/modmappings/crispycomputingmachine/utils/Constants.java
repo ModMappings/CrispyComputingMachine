@@ -44,6 +44,8 @@ public final class Constants {
     public static final String EXTERNAL_MAPPING_STATE_OUT = "Library";
 
     public static final String INTERMEDIARY_MAPPING_REPO = "https://maven.fabricmc.net/net/fabricmc/intermediary/";
+    public static final String INTERMEDIARY_JAR = "intermediary.jar";
+    public static final String INTERMEDIARY_WORKING_DIR = "intermediary";
 
     public static final String MCP_CONFIG_MAPPING_REPO = "https://files.minecraftforge.net/maven/de/oceanlabs/mcp/mcp_config/";
 

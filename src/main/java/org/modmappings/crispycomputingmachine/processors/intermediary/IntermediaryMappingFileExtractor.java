@@ -1,7 +1,10 @@
 package org.modmappings.crispycomputingmachine.processors.intermediary;
 
+import com.google.common.collect.Lists;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.*;
+import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -9,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,101 +21,79 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-public class IntermediaryMappingFileExtractor implements ItemProcessor<String, List<ExternalMapping>> {
+public class IntermediaryMappingFileExtractor extends AbstractMappingParsingProcessor {
 
-    @Value("${importer.directories.working:file:working}")
-    Resource workingDirectory;
+    protected IntermediaryMappingFileExtractor() {
+        super(
+                (releaseName) -> Lists.newArrayList(Paths.get(Constants.INTERMEDIARY_WORKING_DIR, "mappings", "mappings.tiny")),
+                (line, releaseName) -> {
+                    if (!line.startsWith("CLASS"))
+                        return null;
 
-    @Override
-    public List<ExternalMapping> process(final String item) throws Exception {
-        final File workingDirectoryFile = workingDirectory.getFile();
-        workingDirectoryFile.mkdirs();
-        final File versionWorkingDirectory = new File(workingDirectoryFile, item);
-        versionWorkingDirectory.mkdirs();
-        final File unzippingMappingJarTarget = new File(versionWorkingDirectory, "intermediary");
-        final File mappingsDirectory = new File(unzippingMappingJarTarget,"mappings");
-        final File mappingsTinyFile = new File(mappingsDirectory, "mappings.tiny");
+                    final String[] components = line.split("\t");
+                    String parentClassOut = null;
+                    if (components[2].contains("$"))
+                        parentClassOut = components[2].substring(0, components[2].indexOf("$"));
 
-        try (InputStream in = new FileInputStream(mappingsTinyFile)) {
-            List<String> lines = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines()
-                    .skip(1) //Skip the damn header.
-                    .filter(l -> !l.isEmpty()) //Remove Empty lines
-                    .collect(Collectors.toList());
+                    return new ExternalMapping(
+                            components[1],
+                            components[2],
+                            ExternalMappableType.CLASS,
+                            releaseName,
+                            releaseName,
+                            parentClassOut,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null
+                    );
+                },
+                (classes, line, releaseName) -> {
+                    if (!line.startsWith("METHOD"))
+                        return null;
 
-            final Map<String, ExternalMapping> classes = lines.stream().parallel()
-                    .filter(line -> line.startsWith("CLASS"))
-                    .map(line -> {
-                        final String[] components = line.split("\t");
-                        String parentClassOut = null;
-                        if (components[2].contains("$"))
-                            parentClassOut = components[2].substring(0, components[2].indexOf("$"));
+                    final String[] components = line.split("\t");
 
-                        return new ExternalMapping(
-                                components[1],
-                                components[2],
-                                ExternalMappableType.CLASS,
-                                item,
-                                item,
-                                parentClassOut,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null
-                        );
-                    })
-                    .collect(Collectors.toMap(ExternalMapping::getInput, Function.identity()));
+                    final String parentClassOut = classes.get(components[1]).getOutput();
 
-            final List<ExternalMapping> fields = lines.parallelStream()
-                    .filter(line -> line.startsWith("FIELD"))
-                    .map(line -> {
-                        final String[] components = line.split("\t");
+                    return new ExternalMapping(
+                            components[3],
+                            components[4],
+                            ExternalMappableType.METHOD,
+                            releaseName,
+                            releaseName,
+                            parentClassOut,
+                            null,
+                            null,
+                            null,
+                            components[2],
+                            null);
+                },
+                (classes, line, releaseName) -> {
+                    if (!line.startsWith("FIELD"))
+                        return null;
 
-                        final String parentClassOut = classes.get(components[1]).getOutput();
+                    final String[] components = line.split("\t");
 
-                        return new ExternalMapping(
-                                components[3],
-                                components[4],
-                                ExternalMappableType.FIELD,
-                                item,
-                                item,
-                                parentClassOut,
-                                null,
-                                null,
-                                components[2],
-                                null,
-                                null
-                        );
-                        }
-                    ).collect(Collectors.toList());
+                    final String parentClassOut = classes.get(components[1]).getOutput();
 
-            final List<ExternalMapping> methods = lines.parallelStream()
-                    .filter(line -> line.startsWith("METHOD"))
-                    .map(line -> {
-                        final String[] components = line.split("\t");
-
-                        final String parentClassOut = classes.get(components[1]).getOutput();
-
-                        return new ExternalMapping(
-                                components[3],
-                                components[4],
-                                ExternalMappableType.METHOD,
-                                item,
-                                item,
-                                parentClassOut,
-                                null,
-                                null,
-                                null,
-                                components[2],
-                                null
-                        );
-                    }).collect(Collectors.toList());
-
-            final List<ExternalMapping> results = new ArrayList<>(classes.values());
-            results.addAll(methods);
-            results.addAll(fields);
-
-            return results;
-        }
+                    return new ExternalMapping(
+                            components[3],
+                            components[4],
+                            ExternalMappableType.FIELD,
+                            releaseName,
+                            releaseName,
+                            parentClassOut,
+                            null,
+                            null,
+                            components[2],
+                            null,
+                            null
+                    );
+                },
+                IParameterParser.NOOP,
+                Constants.INTERMEDIARY_MAPPING_NAME
+        );
     }
 }

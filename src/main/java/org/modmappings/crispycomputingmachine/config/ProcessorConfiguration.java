@@ -43,9 +43,10 @@ public class ProcessorConfiguration {
     
     @Bean
     public CompositeItemProcessor<String, List<ExternalMapping>> internalIntermediaryMappingReaderProcessor(
-            final ConfigurationIntermediaryMappingMinecraftVersionFilter configurationIntermediaryMappingMinecraftVersionFilter,
-            final ExistingIntermediaryMappingMinecraftVersionFilter existingIntermediaryMappingMinecraftVersionFilter,
-            final IntermediaryMappingsDownloader intermediaryMappingsDownloader,
+            final IntermediaryConfigGameVersionFilter configurationIntermediaryMappingMinecraftVersionFilter,
+            final IntermediarySkipIfOfficialNotReadyFilter existingIntermediaryMappingMinecraftVersionFilter,
+            final IntermediarySkipIfReleaseExistsFilter skipIfReleaseExistsFilter,
+            final IntermediaryDownloadingProcessor intermediaryMappingsDownloader,
             final IntermediaryMappingFileExtractor fileExtractor,
             final IntermediaryMappingsExtractor mappingsExtractor
     ) {
@@ -54,6 +55,7 @@ public class ProcessorConfiguration {
 
         processors.add(configurationIntermediaryMappingMinecraftVersionFilter);
         processors.add(existingIntermediaryMappingMinecraftVersionFilter);
+        processors.add(skipIfReleaseExistsFilter);
         processors.add(intermediaryMappingsDownloader);
         processors.add(mappingsExtractor);
         processors.add(fileExtractor);

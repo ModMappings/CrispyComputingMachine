@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.readers.mappings;
+package org.modmappings.crispycomputingmachine.readers.others;
 
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.utils.Constants;

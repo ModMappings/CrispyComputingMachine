@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.readers.mappings;
+package org.modmappings.crispycomputingmachine.readers.others;
 
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.utils.Constants;
@@ -13,6 +13,4 @@ public class IntermediaryMappingReader extends AbstractMavenBasedMappingReader
     public IntermediaryMappingReader(final CompositeItemProcessor<String, List<ExternalMapping>> internalIntermediaryMappingReaderProcessor) {
         super(internalIntermediaryMappingReaderProcessor, Constants.INTERMEDIARY_MAPPING_NAME, Constants.INTERMEDIARY_MAVEN_METADATA_FILE);
     }
-
-
 }

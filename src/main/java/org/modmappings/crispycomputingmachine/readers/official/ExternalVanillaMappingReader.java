@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.readers.minecraft;
+package org.modmappings.crispycomputingmachine.readers.official;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
