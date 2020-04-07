@@ -105,6 +105,40 @@ public final class CacheUtils {
         return entry;
     }
 
+    public static boolean alreadyExistsOnOutputFromInput(final ExternalMapping ExternalMapping, final AbstractMappingCacheManager targetCacheManager, final AbstractMappingCacheManager parentRemappingManager)
+    {
+        MappingCacheEntry entry = getOutputMappingCacheEntryFromInput(ExternalMapping, targetCacheManager, parentRemappingManager);
+        return entry != null;
+    }
+
+    public static MappingCacheEntry getOutputMappingCacheEntryFromInput(final ExternalMapping externalMapping, final AbstractMappingCacheManager targetCacheManager, final AbstractMappingCacheManager parentRemappingManager) {
+        MappingCacheEntry entry = null;
+        switch (externalMapping.getMappableType())
+        {
+            case CLASS:
+                entry = targetCacheManager.getClassViaOutput(externalMapping.getInput());
+                break;
+            case METHOD:
+                final String parentMethodClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
+
+                entry = targetCacheManager.getMethodViaOutput(externalMapping.getInput(), parentMethodClassInput, externalMapping.getDescriptor());
+                break;
+            case FIELD:
+                final String parentFieldClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
+
+                entry = targetCacheManager.getFieldViaOutput(externalMapping.getInput(), parentFieldClassInput, externalMapping.getType());
+                break;
+            case PARAMETER:
+                final String parentParameterClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
+                final String parentParameterMethodInput = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()).getInput();
+
+                entry = targetCacheManager.getParameterViaOutput(externalMapping.getInput(), parentParameterClassInput, parentParameterMethodInput, externalMapping.getType());
+                break;
+        }
+        return entry;
+    }
+
+
     public static MappableDMO getCachedMappableViaInput(final ExternalMapping externalMapping, final AbstractMappingCacheManager mappingCacheManager, final AbstractMappingCacheManager parentRemappingManager)
     {
         final MappingCacheEntry entry = getInputMappingCacheEntry(externalMapping, mappingCacheManager, parentRemappingManager);
@@ -118,6 +152,15 @@ public final class CacheUtils {
         final MappingCacheEntry entry = getInputMappingCacheEntry(externalMapping, mappingCacheManager);
         if (entry == null)
             return null;
+        return mappingCacheManager.getMappable(entry.getMappableId());
+    }
+
+    public static MappableDMO getCachedMappableViaOutputFromInput(final ExternalMapping externalMapping, final AbstractMappingCacheManager mappingCacheManager, final AbstractMappingCacheManager parentRemappingManager)
+    {
+        final MappingCacheEntry entry = getOutputMappingCacheEntryFromInput(externalMapping, mappingCacheManager, parentRemappingManager);
+        if (entry == null)
+            return null;
+
         return mappingCacheManager.getMappable(entry.getMappableId());
     }
 
@@ -171,10 +214,10 @@ public final class CacheUtils {
         if (clz.startsWith("L"))
             return "L" + remapToInput(clz.substring(1), mappingCacheManager); // Handles class prefixes.
 
-        final MappingCacheEntry entry = mappingCacheManager.getClassViaOutput(clz);
+        final MappingCacheEntry entry = mappingCacheManager.getClassViaOutput(clz.replace(";", ""));
         if (entry == null)
             return clz;
 
-        return entry.getInput();
+        return entry.getInput() + ";";
     }
 }

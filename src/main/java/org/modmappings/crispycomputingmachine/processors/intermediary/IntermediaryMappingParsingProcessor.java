@@ -1,23 +1,26 @@
 package org.modmappings.crispycomputingmachine.processors.intermediary;
 
 import com.google.common.collect.Lists;
+import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
+import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.AbstractContextualMappingParsingProcessor;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualCommentParser;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParameterParser;
-import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.AbstractSimpleMappingParsingProcessor;
-import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.ISimpleParameterParser;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParsingPostProcessor;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.util.List;
 
 @Component
 public class IntermediaryMappingParsingProcessor extends AbstractContextualMappingParsingProcessor {
 
-    protected IntermediaryMappingParsingProcessor() {
+    protected IntermediaryMappingParsingProcessor(VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager) {
         super(
-                (releaseName) -> Lists.newArrayList(Paths.get(Constants.INTERMEDIARY_WORKING_DIR, "mappings", "mappings.tiny")),
+                (releaseName) -> Lists.asList(Path.of(releaseName, Constants.INTERMEDIARY_WORKING_DIR, "mappings", "mappings.tiny"), new Path[0]),
                 (line, releaseName) -> {
                     if (!line.startsWith("CLASS"))
                         return null;
@@ -38,8 +41,9 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
                             null,
                             null,
                             null,
-                            null
-                    );
+                            null,
+                            null,
+                            false);
                 },
                 (parentClass, line, releaseName) -> {
                     if (!line.startsWith("METHOD"))
@@ -60,7 +64,9 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
                             null,
                             null,
                             components[2],
-                            null);
+                            null,
+                            null,
+                            false);
                 },
                 (parentClass, line, releaseName) -> {
                     if (!line.startsWith("FIELD"))
@@ -81,10 +87,41 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
                             null,
                             components[2],
                             null,
-                            null
-                    );
+                            null,
+                            null,
+                            false);
                 },
                 IContextualParameterParser.NOOP,
+                IContextualCommentParser.NOOP,
+                (classes, methods, fields, parameters) -> {
+                    classes.forEach(classMapping -> {
+                        final MappingCacheEntry classInVanilla = vanillaAndExternalMappingCacheManager.getClassViaInput(classMapping.getInput());
+                        if(classInVanilla == null)
+                            return;
+
+                        final String classOutputInVanilla = classInVanilla.getOutput();
+                        final List<MappingCacheEntry> constructorsInVanilla = vanillaAndExternalMappingCacheManager.getConstructorsForClass(classOutputInVanilla);
+
+                        constructorsInVanilla.forEach(constructor -> {
+                            methods.add(new ExternalMapping(
+                                    constructor.getInput(),
+                                    constructor.getOutput(),
+                                    ExternalMappableType.METHOD,
+                                    classMapping.getGameVersion(),
+                                    classMapping.getReleaseName(),
+                                    classMapping.getOutput(),
+                                    null,
+                                    null,
+                                    null,
+                                    constructor.getDescriptor(),
+                                    null,
+                                    null,
+                                    false
+                                    )
+                            );
+                        });
+                    });
+                },
                 Constants.INTERMEDIARY_MAPPING_NAME
         );
     }

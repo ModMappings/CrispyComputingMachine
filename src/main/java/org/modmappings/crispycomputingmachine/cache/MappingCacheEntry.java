@@ -13,12 +13,13 @@ public class MappingCacheEntry {
     private MappableTypeDMO mappableType;
     private String parentClassOutput;
     private String parentMethodOutput;
-    private UUID gameVersionedId;
+    private UUID gameVersionId;
     private String gameVersionName;
     private String type;
     private String descriptor;
+    private boolean isStatic;
 
-    public MappingCacheEntry(final String input, final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableType, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionedId, final String gameVersionName, final String type, final String descriptor) {
+    public MappingCacheEntry(final String input, final String output, final UUID mappableId, final UUID versionedMappableId, final MappableTypeDMO mappableType, final String parentClassOutput, final String parentMethodOutput, final UUID gameVersionId, final String gameVersionName, final String type, final String descriptor, final boolean isStatic) {
         this.input = input;
         this.output = output;
         this.mappableId = mappableId;
@@ -26,10 +27,11 @@ public class MappingCacheEntry {
         this.mappableType = mappableType;
         this.parentClassOutput = parentClassOutput;
         this.parentMethodOutput = parentMethodOutput;
-        this.gameVersionedId = gameVersionedId;
+        this.gameVersionId = gameVersionId;
         this.gameVersionName = gameVersionName;
         this.type = type;
         this.descriptor = descriptor;
+        this.isStatic = isStatic;
     }
 
     public String getInput() {
@@ -60,8 +62,8 @@ public class MappingCacheEntry {
         return parentMethodOutput;
     }
 
-    public UUID getGameVersionedId() {
-        return gameVersionedId;
+    public UUID getGameVersionId() {
+        return gameVersionId;
     }
 
     public String getGameVersionName() {
@@ -74,5 +76,9 @@ public class MappingCacheEntry {
 
     public String getDescriptor() {
         return descriptor;
+    }
+
+    public boolean isStatic() {
+        return isStatic;
     }
 }

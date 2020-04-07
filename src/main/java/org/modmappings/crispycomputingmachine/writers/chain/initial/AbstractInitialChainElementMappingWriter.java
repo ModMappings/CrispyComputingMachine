@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.writers;
+package org.modmappings.crispycomputingmachine.writers.chain.initial;
 
 import com.google.common.collect.Lists;
 import org.apache.logging.log4j.LogManager;
@@ -98,7 +98,7 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                         UUID.randomUUID(),
                         Constants.SYSTEM_ID,
                         Timestamp.from(Instant.now()),
-                        evm.getGameVersion(),
+                        evm.getReleaseName(),
                         gameVersion.getId(),
                         mappingType.getId(),
                         GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
@@ -152,7 +152,8 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                             toEdit.getDescriptor(),
                             toEdit.getParentMethodId(),
                             toEdit.getSignature(),
-                            toEdit.isExternal()
+                            toEdit.isExternal(),
+                            toEdit.getIndex()
                     )).orElseThrow();
 
                     //Store and update maps.
@@ -325,23 +326,5 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                                 .first()
                                 .map(r -> mappingType))
                 ).block();
-    }
-
-    public static final class MappableToVersionedMappableAssociation {
-        private final UUID mappableId;
-        private final UUID versionedMappableId;
-
-        public MappableToVersionedMappableAssociation(final UUID mappableId, final UUID versionedMappableId) {
-            this.mappableId = mappableId;
-            this.versionedMappableId = versionedMappableId;
-        }
-
-        public UUID getMappableId() {
-            return mappableId;
-        }
-
-        public UUID getVersionedMappableId() {
-            return versionedMappableId;
-        }
     }
 }

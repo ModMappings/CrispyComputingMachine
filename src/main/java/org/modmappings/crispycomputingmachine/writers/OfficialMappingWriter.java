@@ -34,14 +34,14 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaMapping> {
+public class OfficialMappingWriter implements ItemWriter<ExternalVanillaMapping> {
 
-    private static final Logger LOGGER = LogManager.getLogger(ExternalVanillaMappingWriter.class);
+    private static final Logger LOGGER = LogManager.getLogger();
 
     private final DatabaseClient databaseClient;
     private final VanillaAndExternalMappingCacheManager mappingCacheManager;
 
-    public ExternalVanillaMappingWriter(final DatabaseClient databaseClient, final VanillaAndExternalMappingCacheManager mappingCacheManager) {
+    public OfficialMappingWriter(final DatabaseClient databaseClient, final VanillaAndExternalMappingCacheManager mappingCacheManager) {
         this.databaseClient = databaseClient;
         this.mappingCacheManager = mappingCacheManager;
     }
@@ -371,7 +371,8 @@ public class ExternalVanillaMappingWriter implements ItemWriter<ExternalVanillaM
                 externalVanillaMapping.getDescriptor(),
                 externalVanillaMapping.getParentMethodMapping() == null ? null : mappingCacheManager.getMethodViaOutput(externalVanillaMapping.getParentMethodMapping(), externalVanillaMapping.getParentClassMapping(), externalVanillaMapping.getParentMethodDescriptor()).getVersionedMappableId(),
                 externalVanillaMapping.getSignature(),
-                externalVanillaMapping.isExternal()
+                externalVanillaMapping.isExternal(),
+                externalVanillaMapping.getIndex() == null ? -1 : externalVanillaMapping.getIndex()
         );
     }
 

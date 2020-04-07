@@ -1,21 +1,21 @@
 package org.modmappings.crispycomputingmachine.config;
 
-import org.modmappings.crispycomputingmachine.cache.ChunkCacheExecutionListener;
-import org.modmappings.crispycomputingmachine.cache.IntermediaryMappingCacheManager;
-import org.modmappings.crispycomputingmachine.cache.MCPConfigMappingCacheManager;
-import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
+import org.modmappings.crispycomputingmachine.cache.*;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.readers.others.IntermediaryMappingReader;
-import org.modmappings.crispycomputingmachine.readers.official.ExternalVanillaMappingReader;
+import org.modmappings.crispycomputingmachine.readers.official.OfficialMappingReader;
 import org.modmappings.crispycomputingmachine.readers.others.MCPConfigMappingReader;
+import org.modmappings.crispycomputingmachine.readers.others.YarnMappingReader;
 import org.modmappings.crispycomputingmachine.readers.policies.completion.MTRespectingReaderAndCompletionPolicy;
 import org.modmappings.crispycomputingmachine.tasks.DownloadIntermediaryManifestTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMCPConfigManifestTasklet;
 import org.modmappings.crispycomputingmachine.tasks.DownloadMinecraftManifestTasklet;
+import org.modmappings.crispycomputingmachine.tasks.DownloadYarnManifestTasklet;
 import org.modmappings.crispycomputingmachine.utils.Constants;
-import org.modmappings.crispycomputingmachine.writers.ExternalVanillaMappingWriter;
-import org.modmappings.crispycomputingmachine.writers.IntermediaryMappingWriter;
-import org.modmappings.crispycomputingmachine.writers.MCPConfigMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.OfficialMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.chain.dependent.YarnMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.chain.initial.IntermediaryMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.chain.initial.MCPConfigMappingWriter;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.context.annotation.Bean;
@@ -59,11 +59,21 @@ public class StepConfiguration {
                 .tasklet(downloadMCPConfigManifestTasklet)
                 .build();
     }
+
+    @Bean
+    public Step downloadYarnMavenMetadataVersion(
+            final DownloadYarnManifestTasklet downloadYarnManifestTasklet
+    )
+    {
+        return stepBuilderFactory.get(Constants.DOWNLOAD_YARN_MAVEN_METADATA_STEP_NAME)
+                .tasklet(downloadYarnManifestTasklet)
+                .build();
+    }
         
     @Bean
     public Step performMinecraftVersionImport(
-            final ExternalVanillaMappingReader reader,
-            final ExternalVanillaMappingWriter writer,
+            final OfficialMappingReader reader,
+            final OfficialMappingWriter writer,
             final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager
             )
     {
@@ -113,6 +123,26 @@ public class StepConfiguration {
                 .reader(policyReader)
                 .writer(writer)
                 .listener(new ChunkCacheExecutionListener(mcpConfigMappingCacheManager, vanillaAndExternalMappingCacheManager))
+                .build();
+    }
+
+    @Bean
+    public Step performYarnImport(
+            final YarnMappingReader reader,
+            final YarnMappingWriter writer,
+            final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager,
+            final IntermediaryMappingCacheManager intermediaryMappingCacheManager,
+            final YarnMappingCacheManager yarnMappingCacheManager
+    )
+    {
+        final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
+
+        return stepBuilderFactory
+                .get(Constants.IMPORT_YARN_MAPPINGS)
+                .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
+                .reader(policyReader)
+                .writer(writer)
+                .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager, intermediaryMappingCacheManager, yarnMappingCacheManager))
                 .build();
     }
 }

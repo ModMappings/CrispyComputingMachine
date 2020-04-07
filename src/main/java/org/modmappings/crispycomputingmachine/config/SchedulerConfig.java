@@ -36,6 +36,9 @@ public class SchedulerConfig {
     @Value("${importer.mcpconfig.schedule:15 */1 * * * ?}")
     String mcpConfigSchedule;
 
+    @Value("${importer.yarn.schedule:30 */1 * * * ?}")
+    String yarnSchedule;
+
 
     public SchedulerConfig(JobLauncher jobLauncher, final JobLocator jobLocator) {
         this.jobLauncher = jobLauncher;
@@ -115,6 +118,38 @@ public class SchedulerConfig {
     }
 
     @Bean
+    public JobDetail importYarnJobDetail() {
+        //Set Job data map
+        JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap.put("jobName", "importYarnJob");
+        jobDataMap.put("jobLauncher", jobLauncher);
+        jobDataMap.put("jobLocator", jobLocator);
+
+        return JobBuilder.newJob(CCMQuartzJob.class)
+                .withIdentity("importYarnJob")
+                .setJobData(jobDataMap)
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger importYarnJobTrigger(
+            final JobDetail importYarnJobDetail
+    )
+    {
+        final CronScheduleBuilder cronScheduleBuilder = CronScheduleBuilder.cronSchedule(yarnSchedule)
+                .withMisfireHandlingInstructionIgnoreMisfires()
+                .inTimeZone(TimeZone.getDefault());
+
+        return TriggerBuilder
+                .newTrigger()
+                .forJob(importYarnJobDetail)
+                .withIdentity("importYarnJobTrigger")
+                .withSchedule(cronScheduleBuilder)
+                .build();
+    }
+
+    @Bean
     public JobDetail importMCPConfigJobDetail() {
         //Set Job data map
         JobDataMap jobDataMap = new JobDataMap();
@@ -174,6 +209,21 @@ public class SchedulerConfig {
         scheduler.setJobDetails(importIntermediaryJobDetail);
         return scheduler;
     }
+
+    @Bean
+    public SchedulerFactoryBean importYarnScheduler(
+            final JobDetail importYarnJobDetail,
+            final Trigger importYarnJobTrigger,
+            final Properties quartzProperties
+    ) throws IOException
+    {
+        SchedulerFactoryBean scheduler = new SchedulerFactoryBean();
+        scheduler.setTriggers(importYarnJobTrigger);
+        scheduler.setQuartzProperties(quartzProperties);
+        scheduler.setJobDetails(importYarnJobDetail);
+        return scheduler;
+    }
+
 
     @Bean
     public SchedulerFactoryBean importMCPConfigScheduler(

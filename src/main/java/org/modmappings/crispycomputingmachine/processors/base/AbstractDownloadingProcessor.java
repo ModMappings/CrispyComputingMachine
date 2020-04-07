@@ -43,7 +43,7 @@ public abstract class AbstractDownloadingProcessor implements ItemProcessor<Stri
             versionWorkingDirectory.mkdirs();
             final File mappingJarFile = new File(versionWorkingDirectory, fileName);
 
-            final URL mappingJarURL = releaseToUrlFunction.apply(item); //new URL(Constants.INTERMEDIARY_MAPPING_REPO + item + "/intermediary-" + item + ".jar");
+            final URL mappingJarURL = releaseToUrlFunction.apply(item);
             final InputStream in = mappingJarURL.openStream();
             Files.copy(in, mappingJarFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return item;

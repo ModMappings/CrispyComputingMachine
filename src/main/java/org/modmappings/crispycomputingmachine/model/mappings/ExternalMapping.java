@@ -12,6 +12,9 @@ public class ExternalMapping {
     private final String type;
     private final String descriptor;
     private final String signature;
+    private final Integer index;
+    private boolean isStatic;
+    private String documentation = "";
 
     public ExternalMapping(final String input,
                            final String output,
@@ -23,7 +26,9 @@ public class ExternalMapping {
                            final String parentMethodDescriptor,
                            final String type,
                            final String descriptor,
-                           final String signature) {
+                           final String signature,
+                           final Integer index,
+                           final boolean isStatic) {
         this.input = input;
         this.output = output;
         this.mappableType = mappableType;
@@ -35,6 +40,8 @@ public class ExternalMapping {
         this.signature = signature;
         this.parentMethodMapping = parentMethodMapping;
         this.parentMethodDescriptor = parentMethodDescriptor;
+        this.index = index;
+        this.isStatic = isStatic;
     }
 
     public String getInput() {
@@ -79,6 +86,26 @@ public class ExternalMapping {
 
     public String getParentMethodDescriptor() {
         return parentMethodDescriptor;
+    }
+
+    public String getDocumentation() {
+        return documentation;
+    }
+
+    public void setDocumentation(final String documentation) {
+        this.documentation = documentation;
+    }
+
+    public Integer getIndex() {
+        return index;
+    }
+
+    public boolean isStatic() {
+        return isStatic;
+    }
+
+    public void setStatic(final boolean aStatic) {
+        isStatic = aStatic;
     }
 
     @Override

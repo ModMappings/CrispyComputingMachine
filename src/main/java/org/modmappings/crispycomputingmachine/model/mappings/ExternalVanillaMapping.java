@@ -12,7 +12,6 @@ public class ExternalVanillaMapping extends ExternalMapping {
     private final Date gameVersionReleaseDate;
 
     private ExternalVisibility visibility;
-    private boolean isStatic;
 
     private boolean isExternal;
 
@@ -20,11 +19,10 @@ public class ExternalVanillaMapping extends ExternalMapping {
     private Set<MethodRef> methodOverrides;
 
     public ExternalVanillaMapping(final String input, final String output, final ExternalMappableType mappableType, final String gameVersion, final Date gameVersionReleaseDate, final String releaseName, final String parentClassMapping, final String parentMethodMapping, final String parentMethodDescriptor, final ExternalVisibility visibility, final boolean isStatic, final String type, final String descriptor, final String signature, final boolean isExternal, final List<String> superClasses, final Set<MethodRef> methodOverrides) {
-        super(input, output, mappableType, gameVersion, releaseName, parentClassMapping, parentMethodMapping, parentMethodDescriptor, type, descriptor, signature);
+        super(input, output, mappableType, gameVersion, releaseName, parentClassMapping, parentMethodMapping, parentMethodDescriptor, type, descriptor, signature, null, isStatic);
 
         this.gameVersionReleaseDate = gameVersionReleaseDate;
         this.visibility = visibility;
-        this.isStatic = isStatic;
         this.isExternal = isExternal;
         this.superClasses = superClasses;
         this.methodOverrides = methodOverrides;
@@ -36,10 +34,6 @@ public class ExternalVanillaMapping extends ExternalMapping {
 
     public ExternalVisibility getVisibility() {
         return visibility;
-    }
-
-    public boolean isStatic() {
-        return isStatic;
     }
 
     public List<String> getSuperClasses() {

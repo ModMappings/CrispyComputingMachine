@@ -9,6 +9,7 @@ import org.modmappings.crispycomputingmachine.processors.mcpconfig.*;
 import org.modmappings.crispycomputingmachine.processors.release.ExternalReleaseToExternalVanillaMappingProcessor;
 import org.modmappings.crispycomputingmachine.processors.release.ExternalVanillaMappingSorter;
 import org.modmappings.crispycomputingmachine.processors.official.*;
+import org.modmappings.crispycomputingmachine.processors.yarn.*;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.support.CompositeItemProcessor;
 import org.springframework.context.annotation.Bean;
@@ -57,6 +58,29 @@ public class ProcessorConfiguration {
         processors.add(existingIntermediaryMappingMinecraftVersionFilter);
         processors.add(skipIfReleaseExistsFilter);
         processors.add(intermediaryMappingsDownloader);
+        processors.add(mappingsExtractor);
+        processors.add(fileExtractor);
+        compositeItemProcessor.setDelegates(processors);
+
+        return compositeItemProcessor;
+    }
+
+    @Bean
+    public CompositeItemProcessor<String, List<ExternalMapping>> internalYarnMappingReaderProcessor(
+            final YarnConfigGameVersionFilter configurationYarnMappingMinecraftVersionFilter,
+            final YarnSkipIfIntermediaryNotReadyFilter existingYarnMappingIntermediaryVersionFilter,
+            final YarnSkipIfReleaseExistsFilter skipIfReleaseExistsFilter,
+            final YarnDownloadingProcessor yarnMappingsDownloader,
+            final YarnMappingParsingProcessor fileExtractor,
+            final YarnJarExtractionProcessor mappingsExtractor
+    ) {
+        final CompositeItemProcessor<String, List<ExternalMapping>> compositeItemProcessor = new CompositeItemProcessor<>();
+        final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();
+
+        processors.add(configurationYarnMappingMinecraftVersionFilter);
+        processors.add(existingYarnMappingIntermediaryVersionFilter);
+        processors.add(skipIfReleaseExistsFilter);
+        processors.add(yarnMappingsDownloader);
         processors.add(mappingsExtractor);
         processors.add(fileExtractor);
         compositeItemProcessor.setDelegates(processors);

@@ -4,6 +4,8 @@ import com.google.gson.reflect.TypeToken;
 import net.minecraftforge.lex.mappingtoy.MappingToy;
 import net.minecraftforge.lex.mappingtoy.Utils;
 import net.minecraftforge.srgutils.IMappingFile;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
@@ -22,6 +24,8 @@ import java.util.*;
 
 @Component
 public class MappingToyInformationExtractor implements ItemProcessor<VersionsItem, MappingToyData>, InitializingBean {
+
+    private static final Logger LOGGER = LogManager.getLogger();
 
     @Value("${importer.directories.working:file:working}")
     Resource workingDirectory;
@@ -54,7 +58,16 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
         mappingToyArgs.add("--force");
 
         //Invoke mapping toy.
-        MappingToy.main(mappingToyArgs.toArray(new String[0]));
+        try {
+            MappingToy.main(mappingToyArgs.toArray(new String[0]));
+        }
+        catch (NumberFormatException ex)
+        {
+            //This means something in the version parsing went wrong.
+            //An example is 20114infinity.
+            LOGGER.error("Failed to parse MC version. An update to MappingToy and SrgUtils will be needed!", ex);
+            return null;
+        }
 
         final File versionedMapDataDirectory = new File(mapDataDirectory, item.getId());
 

@@ -45,6 +45,20 @@ public class JobConfiguration {
     }
 
     @Bean
+    public Job importYarnJob(
+            final Step downloadYarnMavenMetadataVersion,
+            final Step performYarnImport
+    )
+    {
+        return jobBuilderFactory.get("importYarnJob")
+                .preventRestart()
+                .incrementer(new RunIdIncrementer())
+                .start(downloadYarnMavenMetadataVersion)
+                .next(performYarnImport)
+                .build();
+    }
+
+    @Bean
     public Job importMCPConfigJob(
             final Step downloadMCPConfigMavenMetadataVersion,
             final Step performMCPConfigImport

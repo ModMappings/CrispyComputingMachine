@@ -38,20 +38,20 @@ sourceSets {
 dependencies {
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
 
-    implementation 'org.modmappings.mmms:repository:0.1.0-312.gd2cf16a'
-    implementation 'org.modmappings.mmms:er2dbc:0.1.0-312.gd2cf16a'
+    implementation 'org.modmappings.mmms:repository:0.1.0-313.g1f31c5c'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-313.g1f31c5c'
 
     implementation 'com.google.guava:guava:28.2-jre'
 
-    implementation 'net.minecraftforge.lex:MappingToy:1.0.6'
-    implementation 'org.ow2.asm:asm:7.2'
-    implementation 'org.ow2.asm:asm-commons:7.2'
-    implementation 'org.ow2.asm:asm-tree:7.2'
-    implementation 'org.ow2.asm:asm-util:7.2'
+    implementation 'net.minecraftforge.lex:MappingToy:1.0.7'
+    implementation 'org.ow2.asm:asm:8.0'
+    implementation 'org.ow2.asm:asm-commons:8.0'
+    implementation 'org.ow2.asm:asm-tree:8.0'
+    implementation 'org.ow2.asm:asm-util:8.0'
     implementation 'net.sf.jopt-simple:jopt-simple:6.0-alpha-3'
     implementation 'com.google.code.gson:gson:2.8.6'
-    implementation 'net.minecraftforge:mergetool:1.0.10'
-    implementation 'net.minecraftforge:srgutils:0.2.7'
+    implementation 'net.minecraftforge:mergetool:1.1.0'
+    implementation 'net.minecraftforge:srgutils:0.2.10'
 
     implementation 'org.springframework.boot:spring-boot-starter-batch'
     implementation 'org.springframework.boot:spring-boot-starter-quartz'

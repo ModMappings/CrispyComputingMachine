@@ -23,9 +23,9 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
-public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<ExternalVanillaMapping> implements InitializingBean, PeekableItemReader<ExternalVanillaMapping> {
+public class OfficialMappingReader extends AbstractItemStreamItemReader<ExternalVanillaMapping> implements InitializingBean, PeekableItemReader<ExternalVanillaMapping> {
 
-    private static final Logger LOGGER = LogManager.getLogger(ExternalVanillaMappingReader.class);
+    private static final Logger LOGGER = LogManager.getLogger(OfficialMappingReader.class);
 
     @Value("${importer.directories.working:file:working}")
     Resource workingDirectory;
@@ -36,7 +36,7 @@ public class ExternalVanillaMappingReader extends AbstractItemStreamItemReader<E
     private VersionsItem currentVersion = null;
     private PeekingIterator<ExternalVanillaMapping> vanillaMappingIterator = null;
 
-    public ExternalVanillaMappingReader(final CompositeItemProcessor<VersionsItem, List<ExternalVanillaMapping>> internalVanillaMappingReaderProcessor) {
+    public OfficialMappingReader(final CompositeItemProcessor<VersionsItem, List<ExternalVanillaMapping>> internalVanillaMappingReaderProcessor) {
         this.internalVanillaMappingReaderProcessor = internalVanillaMappingReaderProcessor;
     }
 

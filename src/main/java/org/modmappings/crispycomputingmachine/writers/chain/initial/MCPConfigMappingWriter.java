@@ -1,4 +1,4 @@
-package org.modmappings.crispycomputingmachine.writers;
+package org.modmappings.crispycomputingmachine.writers.chain.initial;
 
 import org.modmappings.crispycomputingmachine.cache.MCPConfigMappingCacheManager;
 import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;

@@ -4,13 +4,13 @@ import com.google.common.collect.Lists;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.AbstractContextualMappingParsingProcessor;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualCommentParser;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParameterParser;
-import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.AbstractSimpleMappingParsingProcessor;
-import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.ISimpleParameterParser;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParsingPostProcessor;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Component
@@ -18,7 +18,7 @@ public class MCPConfigMappingParsingProcessor extends AbstractContextualMappingP
 
     protected MCPConfigMappingParsingProcessor() {
         super(
-                (releaseName) -> Lists.newArrayList(Paths.get(Constants.MCP_CONFIG_WORKING_DIR, "config", "joined.tsrg")),
+                (releaseName) -> Lists.asList(Paths.get(releaseName, Constants.MCP_CONFIG_WORKING_DIR, "config", "joined.tsrg"), new Path[0]),
                 (line, releaseName) -> {
                     final String[] components = line.split(" ");
                     if (components.length != 2)
@@ -39,8 +39,9 @@ public class MCPConfigMappingParsingProcessor extends AbstractContextualMappingP
                             null,
                             null,
                             null,
-                            null
-                    );
+                            null,
+                            null,
+                            false);
                 },
                 (parentClass, line, releaseName) -> {
                     if (!line.startsWith("\t"))
@@ -65,7 +66,7 @@ public class MCPConfigMappingParsingProcessor extends AbstractContextualMappingP
                             null,
                             null,
                             components[1],
-                            null);
+                            null, null, false);
                 },
                 (parentClass, line, releaseName) -> {
                     if (!line.startsWith("\t"))
@@ -91,11 +92,11 @@ public class MCPConfigMappingParsingProcessor extends AbstractContextualMappingP
                             null,
                             "*",
                             null,
-                            null
-                    );
+                            null,
+                            null, false);
                 },
                 IContextualParameterParser.NOOP,
-                Constants.MCP_CONFIG_MAPPING_NAME
+                IContextualCommentParser.NOOP, IContextualParsingPostProcessor.NOOP, Constants.MCP_CONFIG_MAPPING_NAME
         );
     }
 }

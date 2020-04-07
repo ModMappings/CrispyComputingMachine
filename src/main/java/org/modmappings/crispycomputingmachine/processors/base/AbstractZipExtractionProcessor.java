@@ -53,6 +53,7 @@ public abstract class AbstractZipExtractionProcessor implements ItemProcessor<St
                 else
                 {
                     File newFile = newFile(unzippingMappingJarTarget, zipEntry);
+                    newFile.getParentFile().mkdirs();
                     FileOutputStream fos = new FileOutputStream(newFile);
                     int len;
                     while ((len = zis.read(buffer)) > 0) {

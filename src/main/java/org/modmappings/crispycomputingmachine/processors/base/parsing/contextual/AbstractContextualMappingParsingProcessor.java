@@ -1,7 +1,6 @@
 package org.modmappings.crispycomputingmachine.processors.base.parsing.contextual;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -29,14 +28,18 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
     private final IContextualMethodParser methodParser;
     private final IContextualFieldParser fieldParser;
     private final IContextualParameterParser parameterParser;
+    private final IContextualCommentParser commentParser;
+    private final IContextualParsingPostProcessor postProcessor;
     private final String mappingTypeName;
 
-    protected AbstractContextualMappingParsingProcessor(final Function<String, List<Path>> pathsExtractor, final IContextualClassParser classParser, final IContextualMethodParser methodParser, final IContextualFieldParser fieldParser, final IContextualParameterParser parameterParser, final String mappingTypeName) {
+    protected AbstractContextualMappingParsingProcessor(final Function<String, List<Path>> pathsExtractor, final IContextualClassParser classParser, final IContextualMethodParser methodParser, final IContextualFieldParser fieldParser, final IContextualParameterParser parameterParser, final IContextualCommentParser commentParser, final IContextualParsingPostProcessor postProcessor, final String mappingTypeName) {
         this.pathsExtractor = pathsExtractor;
         this.classParser = classParser;
         this.methodParser = methodParser;
         this.fieldParser = fieldParser;
         this.parameterParser = parameterParser;
+        this.commentParser = commentParser;
+        this.postProcessor = postProcessor;
         this.mappingTypeName = mappingTypeName;
     }
 
@@ -71,12 +74,23 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
                 final List<ExternalMapping> fileParameters = Lists.newArrayList();
                 ExternalMapping targetClass = null;
                 ExternalMapping targetMethod = null;
+                ExternalMapping lastResult = null;
                 for (String s : lines) {
+                    if (lastResult != null)
+                    {
+                        final String parameterCandidate = this.commentParser.parse(s);
+                        if (parameterCandidate != null)
+                        {
+                            lastResult.setDocumentation(parameterCandidate);
+                        }
+                    }
+
                     final ExternalMapping classCandidate = this.classParser.parse(s, releaseName);
                     if (classCandidate != null)
                     {
                         targetClass = classCandidate;
                         fileClasses.add(targetClass);
+                        lastResult = targetClass;
                         continue;
                     }
 
@@ -88,15 +102,17 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
                     if (fieldCandidate != null)
                     {
                         fileFields.add(fieldCandidate);
+                        lastResult = fieldCandidate;
                         continue;
                     }
 
                     //We have a method already. Lets check if this line, which followed the method line is a parameter or not.
                     if (targetMethod != null) {
-                        final ExternalMapping parameterCandidate = this.parameterParser.parse(targetMethod, s, releaseName);
+                        final ExternalMapping parameterCandidate = this.parameterParser.parse(targetClass, targetMethod, s, releaseName);
                         if (parameterCandidate != null)
                         {
                             fileParameters.add(parameterCandidate);
+                            lastResult = parameterCandidate;
                             continue;
                         }
 
@@ -109,9 +125,14 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
                     {
                         targetMethod = methodCandidate;
                         fileMethods.add(targetMethod);
+                        lastResult = methodCandidate;
                         continue;
                     }
+
+                    lastResult = null;
                 }
+
+                this.postProcessor.processFile(fileClasses, fileMethods, fileFields, fileParameters);
 
                 classes.addAll(fileClasses);
                 methods.addAll(fileMethods);

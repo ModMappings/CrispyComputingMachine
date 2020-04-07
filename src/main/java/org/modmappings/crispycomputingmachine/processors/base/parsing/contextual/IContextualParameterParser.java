@@ -10,12 +10,12 @@ import java.util.Map;
 public interface IContextualParameterParser {
 
     @Nullable
-    ExternalMapping parse(@NotNull final ExternalMapping method, @NotNull final String line, final String releaseName);
+    ExternalMapping parse(@NotNull final ExternalMapping clazz, @NotNull final ExternalMapping method, @NotNull final String line, final String releaseName);
 
     IContextualParameterParser NOOP = new IContextualParameterParser() {
         @Nullable
         @Override
-        public ExternalMapping parse(@NotNull final ExternalMapping method, final @NotNull String line, final String releaseName) {
+        public ExternalMapping parse(@NotNull final ExternalMapping clazz, @NotNull final ExternalMapping method, final @NotNull String line, final String releaseName) {
             return null;
         }
     };
