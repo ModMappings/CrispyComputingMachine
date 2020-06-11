@@ -103,7 +103,7 @@ public class StepConfiguration {
                 .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
                 .reader(policyReader)
                 .writer(writer)
-                .listener(new ChunkCacheExecutionListener(intermediaryMappingCacheManager, vanillaAndExternalMappingCacheManager))
+                .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager, intermediaryMappingCacheManager))
                 .build();
     }
 
@@ -122,7 +122,7 @@ public class StepConfiguration {
                 .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
                 .reader(policyReader)
                 .writer(writer)
-                .listener(new ChunkCacheExecutionListener(mcpConfigMappingCacheManager, vanillaAndExternalMappingCacheManager))
+                .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager, mcpConfigMappingCacheManager))
                 .build();
     }
 

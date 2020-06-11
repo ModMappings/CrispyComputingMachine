@@ -124,7 +124,7 @@ public class YarnMappingParsingProcessor extends AbstractContextualMappingParsin
                         return null;
 
 
-                    final Integer parameterIndex = Integer.parseInt(components[1]);
+                    final int parameterIndex = Integer.parseInt(components[1]);
 
                     MappingCacheEntry entry = intermediaryCache.getMethodViaOutput(
                         parentMethod.getInput(),
@@ -183,7 +183,7 @@ public class YarnMappingParsingProcessor extends AbstractContextualMappingParsin
                     }
 
                     return new ExternalMapping(
-                            components[1],
+                      parentMethod.getInput().replace("method", "param") + "_" + parameterIndex,
                             components[3],
                             ExternalMappableType.PARAMETER,
                             releaseName.split("\\+")[0],

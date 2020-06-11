@@ -1,11 +1,28 @@
 package org.modmappings.crispycomputingmachine.cache;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.modmappings.crispycomputingmachine.utils.MappingKey;
+import org.modmappings.crispycomputingmachine.utils.MethodDesc;
+import org.modmappings.crispycomputingmachine.utils.RemappableType;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.core.MappingTypeDMO;
 import org.modmappings.mmms.repository.model.core.release.ReleaseDMO;
@@ -15,15 +32,10 @@ import org.modmappings.mmms.repository.model.mapping.mappable.VersionedMappableD
 import org.modmappings.mmms.repository.model.mapping.mappings.MappingDMO;
 import org.springframework.data.r2dbc.core.DatabaseClient;
 import org.springframework.data.r2dbc.query.Criteria;
+import org.springframework.util.Assert;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public abstract class AbstractMappingCacheManager {
 
@@ -31,18 +43,22 @@ public abstract class AbstractMappingCacheManager {
 
     protected final DatabaseClient databaseClient;
 
-    private Map<MappingKey, MappingCacheEntry> outputCache = new HashMap<>();
-    private Map<MappingKey, MappingCacheEntry> inputCache = new HashMap<>();
-    private Map<UUID, MappableDMO> mappableCache = new HashMap<>();
-    private Map<UUID, MappingCacheEntry> versionedMappableIdClassCache = new HashMap<>();
-    private Map<UUID, MappingCacheEntry> versionedMappableIdMethodCache = new HashMap<>();
-    private Map<UUID, MappingCacheEntry> versionedMappableIdFieldCache = new HashMap<>();
-    private Map<UUID, MappingCacheEntry> versionedMappableIdParameterCache = new HashMap<>();
-    private Map<String, List<MappingCacheEntry>> classOutputToConstructorCache = new HashMap<>();
-    private Map<UUID, GameVersionDMO> gameVersionIdCache = new HashMap<>();
-    private Map<String, GameVersionDMO> gameVersionNameCache = new HashMap<>();
-    private Map<UUID, ReleaseDMO> releaseIdCache = new HashMap<>();
+    private AbstractMappingCacheManager remappingManager = this;
+
+    private Map<MappingKey, MappingCacheEntry>    outputCache                       = new HashMap<>();
+    private Map<MappingKey, MappingCacheEntry>    inputCache                        = new HashMap<>();
+    private Map<UUID, MappableDMO>                mappableCache                     = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>          versionedMappableIdClassCache     = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>          versionedMappableIdMethodCache    = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>          versionedMappableIdFieldCache     = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>          versionedMappableIdParameterCache = new HashMap<>();
+    private Map<String, List<MappingCacheEntry>>  classMembers                      = new HashMap<>();
+    private Map<UUID, GameVersionDMO>             gameVersionIdCache                = new HashMap<>();
+    private Map<String, GameVersionDMO>           gameVersionNameCache              = new HashMap<>();
+    private Map<UUID, ReleaseDMO>                 releaseIdCache                    = new HashMap<>();
     private Map<Tuple2<UUID, String>, ReleaseDMO> releaseNameCache = new HashMap<>();
+    private Map<String, Map<UUID, List<UUID>>>    superTypeCache   = new HashMap<>();
+    private Map<String, Map<UUID, List<UUID>>>    overridesMethodsCache = new HashMap<>();
 
     protected AbstractMappingCacheManager(final DatabaseClient databaseClient) {
         this.databaseClient = databaseClient;
@@ -53,75 +69,153 @@ public abstract class AbstractMappingCacheManager {
 
         LOGGER.warn("Rebuilding cache for: " + mappingTypeIds);
 
-        if (mappingTypeIds.isEmpty())
+        if (mappingTypeIds.isEmpty()) {
             return;
+        }
 
+        LOGGER.info("Setting up global game versions for: " + mappingTypeIds);
         this.gameVersionIdCache = this.databaseClient.select().from(GameVersionDMO.class).fetch().all()
-                .collectMap(GameVersionDMO::getId)
-                .block();
+                                                  .collectMap(GameVersionDMO::getId)
+                                                  .block();
 
         this.gameVersionNameCache = this.gameVersionIdCache.values().stream()
-                .collect(Collectors.toMap(GameVersionDMO::getName, Function.identity()));
+                                                    .collect(Collectors.toMap(GameVersionDMO::getName, Function.identity()));
 
-        this.outputCache = getCacheFromDatabase(false).stream()
-                .collect(Collectors.toMap(
-                        mce -> new MappingKey(mce.getOutput(), mce.getMappableType(), mce.getParentClassOutput(), mce.getParentMethodOutput(), mce.getType(), mce.getDescriptor()), Function.identity()
-                ));
+        LOGGER.info("Building master caches for: " + mappingTypeIds);
+        this.outputCache = getCacheFromDatabase(false).parallelStream()
+                                           .collect(Collectors.toMap(
+                                                           mce -> new MappingKey(mce.getOutput(),
+                                                                           mce.getMappableType(),
+                                                                           mce.getParentClassOutput(),
+                                                                           mce.getParentMethodOutput(),
+                                                                           mce.getParentMethodDescriptor(),
+                                                                           mce.getType(),
+                                                                           mce.getDescriptor()), Function.identity()
+                                           ));
 
-        this.inputCache = getCacheFromDatabase(true).stream()
-                .collect(Collectors.toMap(
-                        mce -> new MappingKey(mce.getInput(), mce.getMappableType(), mce.getParentClassOutput(), mce.getParentMethodOutput(), mce.getType(), mce.getDescriptor()), Function.identity()
-                ));
+        this.inputCache = getCacheFromDatabase(true).parallelStream()
+                                          .collect(Collectors.toMap(
+                                                          mce -> new MappingKey(mce.getInput(),
+                                                                          mce.getMappableType(),
+                                                                          mce.getParentClassOutput(),
+                                                                          mce.getParentMethodOutput(),
+                                                                          mce.getParentMethodDescriptor(),
+                                                                          mce.getType(),
+                                                                          mce.getDescriptor()), Function.identity()
+                                          ));
 
+        LOGGER.info("Remapping all method descriptors, parameter and field types to mappable ids for: " + mappingTypeIds);
+        this.outputCache = this.outputCache.values()
+                                           .stream()
+                                           .map(mce -> {
+                                               if (mce.getMappableType() == MappableTypeDMO.CLASS) {
+                                                   return mce;
+                                               }
+
+                                               if (mce.getMappableType() == MappableTypeDMO.METHOD) {
+                                                   mce.setDescriptor(this.remapDescriptor(mce.getDescriptor()));
+                                               }
+                                               if (mce.getMappableType() == MappableTypeDMO.PARAMETER) {
+                                                   mce.setParentMethodDescriptor(this.remapDescriptor(mce.getParentMethodDescriptor()));
+                                               }
+                                               if (mce.getMappableType() == MappableTypeDMO.PARAMETER || mce.getMappableType() == MappableTypeDMO.FIELD) {
+                                                   mce.setType(this.remapType(mce.getType()));
+                                               }
+
+                                               return mce;
+                                           })
+                                           .collect(Collectors.toMap(
+                                                           mce -> new MappingKey(mce.getOutput(),
+                                                                           mce.getMappableType(),
+                                                                           mce.getParentClassOutput(),
+                                                                           mce.getParentMethodOutput(),
+                                                                           mce.getParentMethodDescriptor(),
+                                                                           mce.getType(),
+                                                                           mce.getDescriptor()), Function.identity()
+                                           ));
+        this.inputCache = this.inputCache.values()
+                                           .stream()
+                                           .map(mce -> {
+                                               if (mce.getMappableType() == MappableTypeDMO.CLASS) {
+                                                   return mce;
+                                               }
+
+                                               if (mce.getMappableType() == MappableTypeDMO.METHOD) {
+                                                   mce.setDescriptor(this.remapDescriptor(mce.getDescriptor()));
+                                               }
+                                               if (mce.getMappableType() == MappableTypeDMO.PARAMETER) {
+                                                   mce.setParentMethodDescriptor(this.remapDescriptor(mce.getParentMethodDescriptor()));
+                                               }
+                                               if (mce.getMappableType() == MappableTypeDMO.PARAMETER || mce.getMappableType() == MappableTypeDMO.FIELD) {
+                                                   mce.setType(this.remapType(mce.getType()));
+                                               }
+
+                                               return mce;
+                                           })
+                                           .collect(Collectors.toMap(
+                                                           mce -> new MappingKey(mce.getInput(),
+                                                                           mce.getMappableType(),
+                                                                           mce.getParentClassOutput(),
+                                                                           mce.getParentMethodOutput(),
+                                                                           mce.getParentMethodDescriptor(),
+                                                                           mce.getType(),
+                                                                           mce.getDescriptor()), Function.identity()
+                                           ));
+
+        LOGGER.info("Grabbing global mappables for: " + mappingTypeIds);
         this.mappableCache = this.databaseClient.select()
-                .from(MappableDMO.class)
-                .fetch()
-                .all()
-                .collectMap(MappableDMO::getId)
-                .block();
+                                             .from(MappableDMO.class)
+                                             .fetch()
+                                             .all()
+                                             .collectMap(MappableDMO::getId)
+                                             .block();
 
-        this.versionedMappableIdClassCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableType() == MappableTypeDMO.CLASS)
-                .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
+        LOGGER.info("Processing caches into smaller maps for faster lookups for: " + mappingTypeIds);
+        this.versionedMappableIdClassCache = this.outputCache.values().parallelStream()
+                                                             .filter(mce -> mce.getMappableType() == MappableTypeDMO.CLASS)
+                                                             .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
-        this.versionedMappableIdMethodCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableType() == MappableTypeDMO.METHOD)
-                .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
+        this.versionedMappableIdMethodCache = this.outputCache.values().parallelStream()
+                                                              .filter(mce -> mce.getMappableType() == MappableTypeDMO.METHOD)
+                                                              .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
-        this.versionedMappableIdFieldCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableType() == MappableTypeDMO.FIELD)
-                .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
+        this.versionedMappableIdFieldCache = this.outputCache.values().parallelStream()
+                                                             .filter(mce -> mce.getMappableType() == MappableTypeDMO.FIELD)
+                                                             .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
-        this.versionedMappableIdFieldCache = this.outputCache.values().stream()
-                .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
-                .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
+        this.versionedMappableIdParameterCache = this.outputCache.values().parallelStream()
+                                                                 .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
+                                                                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
-        this.classOutputToConstructorCache = this.versionedMappableIdMethodCache.values().stream()
-                .filter(mappingCacheEntry -> mappingCacheEntry.getInput().equals("<init>") && mappingCacheEntry.getOutput().equals("<init>"))
-                .collect(Collectors.groupingBy(MappingCacheEntry::getParentClassOutput));
+        this.classMembers = this.outputCache.values().parallelStream()
+                                            .filter(mce -> mce.getParentClassOutput() != null)
+                                            .collect(Collectors.groupingBy(MappingCacheEntry::getParentClassOutput));
 
+        LOGGER.info("Grabbing release information for: " + mappingTypeIds);
         final String mappingTypeReleaseQueryComponent =
-                mappingTypeIds.stream()
-                        .map(id -> "release.mapping_type_id = '" + id + "'")
-                        .reduce((left, right) -> left + " or " + right).get();
+                        mappingTypeIds.stream()
+                                        .map(id -> "release.mapping_type_id = '" + id + "'")
+                                        .reduce((left, right) -> left + " or " + right).get();
 
 
         final List<ReleaseDMO> releaseDMOS = this.databaseClient.execute(
-                "SELECT release.id, release.created_by, release.created_on, release.name, release.game_version_id, release.mapping_type_id, release.is_snapshot, release.state " +
-                        "FROM release " +
-                        "WHERE (" + mappingTypeReleaseQueryComponent + ")")
-                .as(ReleaseDMO.class)
-                .fetch()
-                .all()
-                .collectList()
-                .block();
+                        "SELECT release.id, release.created_by, release.created_on, release.name, release.game_version_id, release.mapping_type_id, release.is_snapshot, release.state "                                        +
+                                        "FROM release " +
+                                        "WHERE (" + mappingTypeReleaseQueryComponent + ")")
+                                                             .as(ReleaseDMO.class)
+                                                             .fetch()
+                                                             .all()
+                                                             .collectList()
+                                                             .block();
+
+        Assert.notNull(releaseDMOS, "Releases are null!");
 
         this.releaseIdCache = releaseDMOS
-                .stream()
-                .collect(Collectors.toMap(ReleaseDMO::getId, Function.identity()));
+                                              .stream()
+                                              .collect(Collectors.toMap(ReleaseDMO::getId, Function.identity()));
 
         this.releaseNameCache = this.releaseIdCache.values().stream()
-                .collect(Collectors.toMap(r -> Tuples.of(r.getMappingTypeId(), r.getName()), Function.identity()));
+                                                .collect(Collectors.toMap(r -> Tuples.of(r.getMappingTypeId(), r.getName()), Function.identity()));
 
         LOGGER.warn("Rebuilding cache for: " + mappingTypeIds + " completed.");
     }
@@ -129,59 +223,67 @@ public abstract class AbstractMappingCacheManager {
     private Set<MappingCacheEntry> getCacheFromDatabase(final boolean isInput) {
         final List<UUID> mappingTypeIds = getMappingTypeIds();
         final String mappingTypeFilterQueryComponent =
-                mappingTypeIds.stream()
-                        .map(id -> "m.mapping_type_id = '" + id + "'")
-                        .reduce((left, right) -> left + " or " + right).orElseThrow();
+                        mappingTypeIds.stream()
+                                        .map(id -> "m.mapping_type_id = '" + id + "'")
+                                        .reduce((left, right) -> left + " or " + right).orElseThrow();
 
         final String mappingColumnName = isInput ? "input" : "output";
 
         return databaseClient.execute(String.format(
-                        "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, vm.descriptor)  m.input as input, m.output as output, mp.id as mappable_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static from mapping m\n" +
-                        "                        JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
-                        "                        JOIN game_version gv on vm.game_version_id = gv.id\n" +
-                        "                        JOIN mappable mp on vm.mappable_id = mp.id\n" +
-                        "                        LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id and pcm.mapping_type_id = m.mapping_type_id\n" +
-                        "                        LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id and pmm.id = m.mapping_type_id\n" +
-                        "                        WHERE (%s)\n" +
-                        "                        order by m.%s, m.mapping_type_id, pcm.output, pmm.output, vm.descriptor, gv.created_on desc, m.created_on desc;",
-                mappingColumnName,
-                mappingTypeFilterQueryComponent,
-                mappingColumnName))
-                .as(MappingCacheEntry.class)
-                .fetch()
-                .all()
-                .collect(Collectors.toSet())
-                .block();
+                        "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, mp.id as mappable_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static from mapping m\n"
+                                        +
+                                        "                        JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
+                                        "                        JOIN game_version gv on vm.game_version_id = gv.id\n" +
+                                        "                        JOIN mappable mp on vm.mappable_id = mp.id\n" +
+                                        "                        LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id and pcm.mapping_type_id = m.mapping_type_id\n"
+                                        +
+                                        "                        LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id and pmm.mapping_type_id = m.mapping_type_id\n"
+                                        +
+                                        "                        LEFT OUTER JOIN versioned_mappable pmvm ON vm.parent_method_id = pmvm.id \n" +
+                                        "                        WHERE (%s)\n" +
+                                        "                        order by m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor, gv.created_on desc, m.created_on desc;",
+                        mappingColumnName,
+                        mappingTypeFilterQueryComponent,
+                        mappingColumnName))
+                               .as(MappingCacheEntry.class)
+                               .fetch()
+                               .all()
+                               .collect(Collectors.toSet())
+                               .block();
     }
 
     protected abstract List<UUID> getMappingTypeIds();
 
     public void destroyCache() {
         this.outputCache = Collections.emptyMap();
+        this.inputCache = Collections.emptyMap();
+        this.mappableCache = Collections.emptyMap();
         this.versionedMappableIdClassCache = Collections.emptyMap();
         this.versionedMappableIdMethodCache = Collections.emptyMap();
         this.versionedMappableIdFieldCache = Collections.emptyMap();
+        this.versionedMappableIdParameterCache = Collections.emptyMap();
+        this.classMembers = Collections.emptyMap();
         this.gameVersionIdCache = Collections.emptyMap();
         this.gameVersionNameCache = Collections.emptyMap();
+        this.releaseIdCache = Collections.emptyMap();
+        this.releaseNameCache = Collections.emptyMap();
+        this.superTypeCache = Maps.newHashMap();
+        this.overridesMethodsCache = Maps.newHashMap();
     }
 
-    public GameVersionDMO getGameVersion(UUID id)
-    {
+    public GameVersionDMO getGameVersion(UUID id) {
         return this.gameVersionIdCache.get(id);
     }
 
-    public GameVersionDMO getGameVersion(String name)
-    {
+    public GameVersionDMO getGameVersion(String name) {
         return this.gameVersionNameCache.get(name);
     }
 
-    public ReleaseDMO getRelease(UUID id)
-    {
+    public ReleaseDMO getRelease(UUID id) {
         return this.releaseIdCache.get(id);
     }
 
-    public ReleaseDMO getRelease(UUID mappingType, String name)
-    {
+    public ReleaseDMO getRelease(UUID mappingType, String name) {
         return this.releaseNameCache.get(Tuples.of(mappingType, name));
     }
 
@@ -189,50 +291,62 @@ public abstract class AbstractMappingCacheManager {
 
     public MappingCacheEntry getClassViaOutput(String mapping) {
         String parent = null;
-        if (mapping.contains("$"))
+        if (mapping.contains("$")) {
             parent = mapping.substring(0, mapping.lastIndexOf("$"));
+        }
 
 
-        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null, null, null);
+        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null, null, null, null);
         final MappingCacheEntry clz = this.outputCache.get(id);
-        if (clz == null)
+        if (clz == null) {
             return null;
+        }
 
         return clz;
     }
 
     public MappingCacheEntry getMethodViaOutput(String mapping, String parentClass, String descriptor) {
+        descriptor = this.remapDescriptor(descriptor);
+
         final MappingKey id = new MappingKey(
-                mapping,
-                MappableTypeDMO.METHOD,
-                parentClass,
-                null,
-                null,
-                descriptor
+                        mapping,
+                        MappableTypeDMO.METHOD,
+                        parentClass,
+                        null,
+                        null,
+                        null,
+                        descriptor
         );
         return this.outputCache.get(id);
     }
 
     public MappingCacheEntry getFieldViaOutput(String mapping, String parentClass, String type) {
+        type = this.remapType(type);
+
         final MappingKey id = new MappingKey(
-                mapping,
-                MappableTypeDMO.FIELD,
-                parentClass,
-                null,
-                type,
-                null
+                        mapping,
+                        MappableTypeDMO.FIELD,
+                        parentClass,
+                        null,
+                        null,
+                        type,
+                        null
         );
         return this.outputCache.get(id);
     }
 
-    public MappingCacheEntry getParameterViaOutput(String mapping, String parentClass, String parentMethod, String type) {
+    public MappingCacheEntry getParameterViaOutput(String mapping, String parentClass, String parentMethod, String parentMethodDescriptor, String type) {
+        parentMethodDescriptor = this.remapDescriptor(parentMethodDescriptor);
+        type = this.remapType(type);
+
         final MappingKey id = new MappingKey(
-                mapping,
-                MappableTypeDMO.PARAMETER,
-                parentClass,
-                parentMethod,
-                type,
-                null
+                        mapping,
+                        MappableTypeDMO.PARAMETER,
+                        parentClass,
+                        parentMethod,
+                        parentMethodDescriptor,
+                        type,
+                        null
         );
         return this.outputCache.get(id);
     }
@@ -241,109 +355,133 @@ public abstract class AbstractMappingCacheManager {
         String parent = null;
         if (mapping.contains("$")) {
             parent = mapping.substring(0, mapping.lastIndexOf("$"));
-            parent = getClassViaInput(parent).getOutput();
+
+            final MappingCacheEntry parentMce = getClassViaInput(parent);
+            //If i can not find my outer class. I am never going to be able to find my inner class in the mappings
+            //So lets just quit while we are ahead.
+            if (parentMce == null)
+                return null;
+
+            parent = parentMce.getOutput();
         }
 
-        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null, null, null);
+        final MappingKey id = new MappingKey(mapping, MappableTypeDMO.CLASS, parent, null, null, null, null);
         final MappingCacheEntry clz = this.inputCache.get(id);
-        if (clz == null)
+        if (clz == null) {
             return null;
+        }
 
         return clz;
     }
 
     public MappingCacheEntry getMethodViaInput(String mapping, String parentClass, String descriptor) {
+        descriptor = this.remapDescriptor(descriptor);
+
         final MappingKey id = new MappingKey(
-                mapping,
-                MappableTypeDMO.METHOD,
-                parentClass,
-                null,
-                null,
-                descriptor
+                        mapping,
+                        MappableTypeDMO.METHOD,
+                        parentClass,
+                        null,
+                        null,
+                        null,
+                        descriptor
         );
 
-        if (this.inputCache.get(id) == null)
+        if (this.inputCache.get(id) == null) {
             return null;
+        }
 
         return this.inputCache.get(id);
     }
 
     public MappingCacheEntry getFieldViaInput(String mapping, String parentClass, String type) {
+        type = this.remapType(type);
+
         final MappingKey id = new MappingKey(
-                mapping,
-                MappableTypeDMO.FIELD,
-                parentClass,
-                null,
-                type,
-                null
+                        mapping,
+                        MappableTypeDMO.FIELD,
+                        parentClass,
+                        null,
+                        null,
+                        type,
+                        null
         );
 
-        if (this.inputCache.get(id) == null)
+        if (this.inputCache.get(id) == null) {
             return null;
+        }
 
         return this.inputCache.get(id);
     }
 
-    public MappingCacheEntry getParameterViaInput(String mapping, String parentClass, String parentMethod, String type) {
+    public MappingCacheEntry getParameterViaInput(String mapping, String parentClass, String parentMethod, String parentMethodDescriptor, String type) {
+        parentMethodDescriptor = this.remapDescriptor(parentMethodDescriptor);
+        type = this.remapType(type);
+
         final MappingKey id = new MappingKey(
-                mapping,
-                MappableTypeDMO.PARAMETER,
-                parentClass,
-                parentMethod,
-                type,
-                null
+                        mapping,
+                        MappableTypeDMO.PARAMETER,
+                        parentClass,
+                        parentMethod,
+                        parentMethodDescriptor,
+                        type,
+                        null
         );
         return this.inputCache.get(id);
     }
 
     public Map<MappingKey, MappingCacheEntry> getAllInClassFromInput(final String classOutput) {
         return this.inputCache.keySet().stream().filter(mappingKey -> mappingKey.getParentClassMapping() != null && mappingKey.getParentClassMapping().equals(classOutput))
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        key -> this.inputCache.get(key)
-                ));
+                               .collect(Collectors.toMap(
+                                               Function.identity(),
+                                               key -> this.inputCache.get(key)
+                               ));
     }
-    
+
     public void registerNewGameVersion(final GameVersionDMO gameVersion) {
         this.gameVersionIdCache.put(gameVersion.getId(), gameVersion);
         this.gameVersionNameCache.put(gameVersion.getName(), gameVersion);
     }
 
-    public void registerNewRelease(final ReleaseDMO release)
-    {
+    public void registerNewRelease(final ReleaseDMO release) {
         this.releaseIdCache.put(release.getId(), release);
         this.releaseNameCache.put(Tuples.of(release.getMappingTypeId(), release.getName()), release);
     }
 
     public void registerNewClass(final MappableDMO mappable, final VersionedMappableDMO versionedMappable, final MappingDMO mapping) {
         final MappingCacheEntry newEntry = new MappingCacheEntry(
-                mapping.getInput(),
-                mapping.getOutput(),
-                mappable.getId(),
-                versionedMappable.getId(),
-                MappableTypeDMO.CLASS,
-                versionedMappable.getParentClassId() != null && this.versionedMappableIdClassCache.containsKey(versionedMappable.getParentClassId()) ? this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput() : null,
-                null,
-                versionedMappable.getGameVersionId(),
-                gameVersionIdCache.get(versionedMappable.getGameVersionId()).getName(),
-                null, null, versionedMappable.isStatic());
+                        mapping.getInput(),
+                        mapping.getOutput(),
+                        mappable.getId(),
+                        versionedMappable.getId(),
+                        MappableTypeDMO.CLASS,
+                        versionedMappable.getParentClassId() != null && this.versionedMappableIdClassCache.containsKey(versionedMappable.getParentClassId())
+                                        ? this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput()
+                                        : null,
+                        null,
+                        null,
+                        versionedMappable.getGameVersionId(),
+                        gameVersionIdCache.get(versionedMappable.getGameVersionId()).getName(),
+                        null, null, versionedMappable.isStatic());
 
         final MappingKey inputMappingKey = new MappingKey(
-                newEntry.getInput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getInput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         final MappingKey outputMappingKey = new MappingKey(
-                newEntry.getOutput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getOutput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         this.inputCache.put(inputMappingKey, newEntry);
@@ -354,34 +492,39 @@ public abstract class AbstractMappingCacheManager {
 
     public void registerNewMethod(final MappableDMO mappable, final VersionedMappableDMO versionedMappable, final MappingDMO mapping) {
         final MappingCacheEntry newEntry = new MappingCacheEntry(
-                mapping.getInput(),
-                mapping.getOutput(),
-                mappable.getId(),
-                versionedMappable.getId(),
-                MappableTypeDMO.METHOD,
-                this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
-                null,
-                versionedMappable.getGameVersionId(),
-                getGameVersion(versionedMappable.getGameVersionId()).getName(),
-                null,
-                versionedMappable.getDescriptor(), versionedMappable.isStatic());
+                        mapping.getInput(),
+                        mapping.getOutput(),
+                        mappable.getId(),
+                        versionedMappable.getId(),
+                        MappableTypeDMO.METHOD,
+                        this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
+                        null,
+                        null,
+                        versionedMappable.getGameVersionId(),
+                        getGameVersion(versionedMappable.getGameVersionId()).getName(),
+                        null,
+                        versionedMappable.getDescriptor(), versionedMappable.isStatic());
+
+        newEntry.setDescriptor(this.remapDescriptor(newEntry.getDescriptor()));
 
         final MappingKey inputMappingKey = new MappingKey(
-                newEntry.getInput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getInput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         final MappingKey outputMappingKey = new MappingKey(
-                newEntry.getOutput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getOutput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         this.inputCache.put(inputMappingKey, newEntry);
@@ -392,33 +535,38 @@ public abstract class AbstractMappingCacheManager {
 
     public void registerNewField(final MappableDMO mappable, final VersionedMappableDMO versionedMappable, final MappingDMO mapping) {
         final MappingCacheEntry newEntry = new MappingCacheEntry(
-                mapping.getInput(),
-                mapping.getOutput(),
-                mappable.getId(),
-                versionedMappable.getId(),
-                MappableTypeDMO.FIELD,
-                this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
-                null,
-                versionedMappable.getGameVersionId(),
-                getGameVersion(versionedMappable.getGameVersionId()).getName(),
-                versionedMappable.getType(), null, versionedMappable.isStatic());
+                        mapping.getInput(),
+                        mapping.getOutput(),
+                        mappable.getId(),
+                        versionedMappable.getId(),
+                        MappableTypeDMO.FIELD,
+                        this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
+                        null,
+                        null,
+                        versionedMappable.getGameVersionId(),
+                        getGameVersion(versionedMappable.getGameVersionId()).getName(),
+                        versionedMappable.getType(), null, versionedMappable.isStatic());
+
+        newEntry.setType(this.remapType(newEntry.getType()));
 
         final MappingKey inputMappingKey = new MappingKey(
-                newEntry.getInput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getInput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         final MappingKey outputMappingKey = new MappingKey(
-                newEntry.getOutput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getOutput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         this.inputCache.put(inputMappingKey, newEntry);
@@ -429,33 +577,39 @@ public abstract class AbstractMappingCacheManager {
 
     public void registerNewParameter(final MappableDMO mappable, final VersionedMappableDMO versionedMappable, final MappingDMO mapping) {
         final MappingCacheEntry newEntry = new MappingCacheEntry(
-                mapping.getInput(),
-                mapping.getOutput(),
-                mappable.getId(),
-                versionedMappable.getId(),
-                MappableTypeDMO.PARAMETER,
-                this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
-                this.versionedMappableIdMethodCache.get(versionedMappable.getParentMethodId()).getOutput(),
-                versionedMappable.getGameVersionId(),
-                getGameVersion(versionedMappable.getGameVersionId()).getName(),
-                versionedMappable.getType(), null, versionedMappable.isStatic());
+                        mapping.getInput(),
+                        mapping.getOutput(),
+                        mappable.getId(),
+                        versionedMappable.getId(),
+                        MappableTypeDMO.PARAMETER,
+                        this.versionedMappableIdClassCache.get(versionedMappable.getParentClassId()).getOutput(),
+                        this.versionedMappableIdMethodCache.get(versionedMappable.getParentMethodId()).getOutput(),
+                        this.versionedMappableIdMethodCache.get(versionedMappable.getParentMethodId()).getDescriptor(),
+                        versionedMappable.getGameVersionId(),
+                        getGameVersion(versionedMappable.getGameVersionId()).getName(),
+                        versionedMappable.getType(), null, versionedMappable.isStatic());
+
+        newEntry.setParentMethodDescriptor(this.remapDescriptor(newEntry.getParentMethodDescriptor()));
+        newEntry.setType(this.remapType(newEntry.getType()));
 
         final MappingKey inputMappingKey = new MappingKey(
-                newEntry.getInput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getInput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         final MappingKey outputMappingKey = new MappingKey(
-                newEntry.getOutput(),
-                newEntry.getMappableType(),
-                newEntry.getParentClassOutput(),
-                newEntry.getParentMethodOutput(),
-                newEntry.getType(),
-                newEntry.getDescriptor()
+                        newEntry.getOutput(),
+                        newEntry.getMappableType(),
+                        newEntry.getParentClassOutput(),
+                        newEntry.getParentMethodOutput(),
+                        newEntry.getParentMethodDescriptor(),
+                        newEntry.getType(),
+                        newEntry.getDescriptor()
         );
 
         this.inputCache.put(inputMappingKey, newEntry);
@@ -465,32 +619,191 @@ public abstract class AbstractMappingCacheManager {
     }
 
     protected UUID getOrCreateIdForMappingType(
-            final String mappingTypeName,
-            final boolean isVisible,
-            final boolean isEditable,
-            final String stateIn,
-            final String stateOut
-    )
-    {
+                    final String mappingTypeName,
+                    final boolean isVisible,
+                    final boolean isEditable,
+                    final String stateIn,
+                    final String stateOut
+    ) {
         return databaseClient.select()
-                .from(MappingTypeDMO.class)
-                .matching(Criteria.where("name").is(mappingTypeName))
-                .fetch()
-                .first()
-                .switchIfEmpty(
-                        Mono.just(new MappingTypeDMO(UUID.randomUUID(), Constants.SYSTEM_ID, Timestamp.from(Instant.now()), mappingTypeName, isVisible, isEditable, stateIn, stateOut))
-                                .flatMap(mappingType -> databaseClient.insert()
-                                        .into(MappingTypeDMO.class)
-                                        .using(mappingType)
-                                        .fetch()
-                                        .first()
-                                        .map(r -> mappingType))
-                )
-                .map(MappingTypeDMO::getId).blockOptional().orElse(null);
+                               .from(MappingTypeDMO.class)
+                               .matching(Criteria.where("name").is(mappingTypeName))
+                               .fetch()
+                               .first()
+                               .switchIfEmpty(
+                                               Mono.just(new MappingTypeDMO(UUID.randomUUID(),
+                                                               Constants.SYSTEM_ID,
+                                                               Timestamp.from(Instant.now()),
+                                                               mappingTypeName,
+                                                               isVisible,
+                                                               isEditable,
+                                                               stateIn,
+                                                               stateOut))
+                                                               .flatMap(mappingType -> databaseClient.insert()
+                                                                                                       .into(MappingTypeDMO.class)
+                                                                                                       .using(mappingType)
+                                                                                                       .fetch()
+                                                                                                       .first()
+                                                                                                       .map(r -> mappingType))
+                               )
+                               .map(MappingTypeDMO::getId).blockOptional().orElse(null);
     }
 
-    public List<MappingCacheEntry> getConstructorsForClass(@NotNull final String classOutput)
+    public MappingCacheEntry getClassCacheEntry(final UUID id)
     {
-        return this.classOutputToConstructorCache.getOrDefault(classOutput, Lists.newArrayList());
+        return this.versionedMappableIdClassCache.get(id);
+    }
+
+    public MappingCacheEntry getMethodCacheEntry(final UUID id)
+    {
+        return this.versionedMappableIdMethodCache.get(id);
+    }
+
+    public MappingCacheEntry getFieldCacheEntry(final UUID id)
+    {
+        return this.versionedMappableIdFieldCache.get(id);
+    }
+
+    public MappingCacheEntry getParameterCacheEntry(final UUID id)
+    {
+        return this.versionedMappableIdParameterCache.get(id);
+    }
+
+    public List<MappingCacheEntry> getConstructorsForClass(@NotNull final String classOutput) {
+        return this.getAllMethodForClass(classOutput)
+                               .stream()
+                               .filter(mce -> mce.getInput().equals("<init>") && mce.getOutput().equals("<init>"))
+                               .collect(Collectors.toList());
+    }
+
+    public List<MappingCacheEntry> getAllMethodForClass(@NotNull final String classOutput) {
+        return this.classMembers.getOrDefault(classOutput, Lists.newArrayList())
+                               .stream()
+                               .filter(mce -> mce.getMappableType() == MappableTypeDMO.METHOD)
+                               .collect(Collectors.toList());
+    }
+
+    public List<MappingCacheEntry> getAllFieldsForClass(@NotNull final String classOutput) {
+        return this.classMembers.getOrDefault(classOutput, Lists.newArrayList())
+                               .stream()
+                               .filter(mce -> mce.getMappableType() == MappableTypeDMO.FIELD)
+                               .collect(Collectors.toList());
+    }
+
+    public List<MappingCacheEntry> getAllParameters(@NotNull final String classOutput) {
+        return this.classMembers.getOrDefault(classOutput, Lists.newArrayList())
+                               .stream()
+                               .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
+                               .collect(Collectors.toList());
+    }
+
+    public void setRemappingManager(final AbstractMappingCacheManager remappingManager) {
+        this.remappingManager = remappingManager;
+    }
+
+    public String remapDescriptor(final String descriptor)
+    {
+        final MethodDesc methodDesc = new MethodDesc(descriptor);
+        final MethodDesc remappedMethodDesc = methodDesc.remap(
+                        type -> Optional.ofNullable(this.remappingManager.getClassViaInput(type))
+                                                .map(MappingCacheEntry::getMappableId)
+                                                .map(Objects::toString)
+        );
+        return remappedMethodDesc.toString();
+    }
+
+    public String remapType(final String type)
+    {
+        return new RemappableType(type).remap(s -> Optional.ofNullable(this.remappingManager.getClassViaInput(s))
+                                                                               .map(MappingCacheEntry::getMappableId)
+                                                                               .map(Objects::toString)).getType();
+    }
+
+    public List<UUID> getSuperTypes(String gameVersionName, UUID classVersionedMappableId)
+    {
+        loadSuperTypes(gameVersionName);
+
+        return this.superTypeCache.getOrDefault(gameVersionName, Maps.newHashMap()).getOrDefault(classVersionedMappableId, Lists.newArrayList());
+    }
+
+    private void loadSuperTypes(final String gameVersionName)
+    {
+        if (this.superTypeCache.containsKey(gameVersionName))
+            return;
+
+        if (!this.gameVersionNameCache.containsKey(gameVersionName))
+            return;
+
+        LOGGER.warn("Loading super type information in gameversion: " + gameVersionName + " for: " + getMappingTypeIds());
+
+        final GameVersionDMO gv = this.gameVersionNameCache.get(gameVersionName);
+
+        final Map<UUID, List<UUID>> overrideData = this.databaseClient
+                        .execute("Select id.sub_type_versioned_mappable_id as subClass, id.super_type_versioned_mappable_id as superClass from mmms.public.inheritance_data id "
+                                                 + "JOIN mmms.public.versioned_mappable vm on vm.id = id.sub_type_versioned_mappable_id "
+                                                 + "JOIN mmms.public.mappable mp on vm.mappable_id = mp.id "
+                                                 + "WHERE mp.type = 'CLASS' and vm.game_version_id = '" + gv.getId() + "'"
+                                ).as(OverrideEntry.class)
+                        .fetch()
+                        .all()
+                        .collect(Collectors.groupingBy(OverrideEntry::getSubClass))
+                        .map(rawData -> rawData.keySet().stream()
+                                    .collect(Collectors.toMap(Function.identity(), id -> rawData.get(id).stream().map(OverrideEntry::getSuperClass).collect(Collectors.toList()))))
+                        .blockOptional().orElse(Maps.newHashMap());
+
+        this.superTypeCache.put(gameVersionName, overrideData);
+    }
+
+    public List<UUID> getOverrides(String gameVersionName, UUID classMethodVersionedId)
+    {
+        loadOverrides(gameVersionName);
+
+        return this.overridesMethodsCache.getOrDefault(gameVersionName, Maps.newHashMap()).getOrDefault(classMethodVersionedId, Lists.newArrayList());
+    }
+
+    private void loadOverrides(final String gameVersionName)
+    {
+        if (this.overridesMethodsCache.containsKey(gameVersionName))
+            return;
+
+        if (!this.gameVersionNameCache.containsKey(gameVersionName))
+            return;
+
+        LOGGER.warn("Loading super type information in gameversion: " + gameVersionName + " for: " + getMappingTypeIds());
+
+        final GameVersionDMO gv = this.gameVersionNameCache.get(gameVersionName);
+
+        final Map<UUID, List<UUID>> overrideData = this.databaseClient
+                                                                   .execute("Select id.sub_type_versioned_mappable_id as sub_class, id.super_type_versioned_mappable_id as super_class from mmms.public.inheritance_data id "
+                                                                                            + "JOIN mmms.public.versioned_mappable vm on vm.id = id.sub_type_versioned_mappable_id "
+                                                                                            + "JOIN mmms.public.mappable mp on vm.mappable_id = mp.id "
+                                                                                            + "WHERE mp.type = 'METHOD' and vm.game_version_id = '" + gv.getId() + "'"
+                                                                   ).as(OverrideEntry.class)
+                                                                   .fetch()
+                                                                   .all()
+                                                                   .collect(Collectors.groupingBy(OverrideEntry::getSubClass))
+                                                                   .map(rawData -> rawData.keySet().stream()
+                                                                                                   .collect(Collectors.toMap(Function.identity(), id -> rawData.get(id).stream().map(OverrideEntry::getSuperClass).collect(Collectors.toList()))))
+                                                                   .blockOptional().orElse(Maps.newHashMap());
+
+        this.overridesMethodsCache.put(gameVersionName, overrideData);
+    }
+
+    private static final class OverrideEntry {
+        private final UUID subClass;
+        private final UUID superClass;
+
+        public OverrideEntry(final UUID subClass, final UUID superClass) {
+            this.subClass = subClass;
+            this.superClass = superClass;
+        }
+
+        public UUID getSubClass() {
+            return subClass;
+        }
+
+        public UUID getSuperClass() {
+            return superClass;
+        }
     }
 }

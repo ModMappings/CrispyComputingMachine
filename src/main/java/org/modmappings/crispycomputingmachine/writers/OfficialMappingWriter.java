@@ -74,6 +74,10 @@ public class OfficialMappingWriter implements ItemWriter<ExternalVanillaMapping>
                             )
                         );
                     }
+                    else
+                    {
+                        LOGGER.info("Not recreating mappable for: " + evm);
+                    }
 
                     final MappableDMO mappable = mappablesToSave.containsKey(evm) ? mappablesToSave.get(evm) : CacheUtils.getCachedMappableViaOutput(evm, mappingCacheManager);
 

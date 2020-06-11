@@ -3,6 +3,7 @@ package org.modmappings.crispycomputingmachine.processors.release;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
@@ -44,10 +45,19 @@ public class ExternalVanillaMappingSorter implements ItemProcessor<List<External
                         .thenComparing(ExternalVanillaMapping::getOutput))
                 .collect(Collectors.toList());
 
+        final List<ExternalVanillaMapping> parameters = item.stream()
+                                                                    .filter(evm -> evm.getMappableType() == ExternalMappableType.PARAMETER)
+                                                                    .sorted(Comparator.comparing(ExternalVanillaMapping::getGameVersionReleaseDate)
+                                                                                            .thenComparing(evm -> classIndexMap.get(evm.getParentClassMapping()), Comparator.naturalOrder())
+                                                                                            .thenComparing(ExternalMapping::getParentMethodMapping, Comparator.nullsLast(Comparator.naturalOrder()))
+                                                                                            .thenComparing(ExternalMapping::getParentMethodDescriptor, Comparator.nullsLast(Comparator.naturalOrder()))
+                                                                                            .thenComparing(ExternalVanillaMapping::getOutput))
+                                                                    .collect(Collectors.toList());
+
         final List<ExternalVanillaMapping> result = new ArrayList<>(classes);
         result.addAll(methods);
         result.addAll(fields);
-        //Vanilla mappings do not have parameters!;
+        result.addAll(parameters);
 
         return result;
     }

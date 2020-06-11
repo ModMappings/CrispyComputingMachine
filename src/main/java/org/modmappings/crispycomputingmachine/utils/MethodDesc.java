@@ -1,17 +1,28 @@
 package org.modmappings.crispycomputingmachine.utils;
 
-import com.google.common.collect.Lists;
-
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import com.google.common.collect.Lists;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class MethodDesc {
 
-    private final List<String> args = Lists.newArrayList();
-    private final String returnType;
+    private static final Logger LOGGER = LogManager.getLogger();
+
+    private final List<String> args;
+    private final String       returnType;
+
+    public MethodDesc(final List<String> args, final String returnType) {
+        this.args = args;
+        this.returnType = returnType;
+    }
 
     public MethodDesc(final String desc) {
+        args = Lists.newArrayList();
 
         int cursor = 0;
         char c;
@@ -23,31 +34,31 @@ public class MethodDesc {
 
         while ((c = desc.charAt(cursor++)) != ')') {
             switch (c) {
-                case 'V':
-                case 'I':
-                case 'C':
-                case 'Z':
-                case 'D':
-                case 'F':
-                case 'J':
-                case 'B':
-                case 'S':
+            case 'V':
+            case 'I':
+            case 'C':
+            case 'Z':
+            case 'D':
+            case 'F':
+            case 'J':
+            case 'B':
+            case 'S':
+                argBuilder.append(c);
+                break;
+            case '[':
+                argBuilder.append(c);
+                continue;
+            case 'L':
+                while (true) {
                     argBuilder.append(c);
-                    break;
-                case '[':
-                    argBuilder.append(c);
-                    continue;
-                case 'L':
-                    while (true) {
-                        argBuilder.append(c);
-                        if (c == ';') {
-                            break;
-                        }
-                        c = desc.charAt(cursor++);
+                    if (c == ';') {
+                        break;
                     }
-                    break;
-                default:
-                    throw new IllegalArgumentException(desc);
+                    c = desc.charAt(cursor++);
+                }
+                break;
+            default:
+                throw new IllegalArgumentException(desc);
             }
 
             args.add(argBuilder.toString());
@@ -63,5 +74,20 @@ public class MethodDesc {
 
     public String getReturnType() {
         return returnType;
+    }
+
+    @Override
+    public String toString() {
+        return "("
+                               + String.join("", getArgs())
+                               + ")"
+                               + getReturnType();
+    }
+
+    public MethodDesc remap(final Function<String, Optional<String>> remappingFunction) {
+        final List<String> remappedArgs =
+                        getArgs().stream().map(RemappableType::new).map(r -> r.remap(remappingFunction)).map(RemappableType::getType).collect(Collectors.toList());
+        final String remappedReturnType = new RemappableType(getReturnType()).remap(remappingFunction).getType();
+        return new MethodDesc(remappedArgs, remappedReturnType);
     }
 }

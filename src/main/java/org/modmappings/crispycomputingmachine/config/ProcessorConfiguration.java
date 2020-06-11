@@ -48,8 +48,8 @@ public class ProcessorConfiguration {
             final IntermediarySkipIfOfficialNotReadyFilter existingIntermediaryMappingMinecraftVersionFilter,
             final IntermediarySkipIfReleaseExistsFilter skipIfReleaseExistsFilter,
             final IntermediaryDownloadingProcessor intermediaryMappingsDownloader,
-            final IntermediaryMappingParsingProcessor fileExtractor,
-            final IntermediaryJarExtractionProcessor mappingsExtractor
+            final IntermediaryJarExtractionProcessor mappingsExtractor,
+            final IntermediaryMappingParsingProcessor fileExtractor
     ) {
         final CompositeItemProcessor<String, List<ExternalMapping>> compositeItemProcessor = new CompositeItemProcessor<>();
         final ArrayList<ItemProcessor<?,?>> processors = new ArrayList<>();

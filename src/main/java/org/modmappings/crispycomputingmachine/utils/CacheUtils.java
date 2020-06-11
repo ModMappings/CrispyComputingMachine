@@ -38,7 +38,7 @@ public final class CacheUtils {
                 entry = cacheManager.getFieldViaOutput(externalMapping.getOutput(), externalMapping.getParentClassMapping(), externalMapping.getType());
                 break;
             case PARAMETER:
-                entry = cacheManager.getParameterViaOutput(externalMapping.getOutput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getType());
+                entry = cacheManager.getParameterViaOutput(externalMapping.getOutput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getParentMethodDescriptor(), externalMapping.getType());
                 break;
         }
         return entry;
@@ -79,7 +79,20 @@ public final class CacheUtils {
                 entry = targetCacheManager.getFieldViaInput(externalMapping.getInput(), targetFieldParentClassOutput, externalMapping.getType());
                 break;
             case PARAMETER:
-                entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getType());
+                final String parentParameterClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
+                final String targetParameterParentClassOutput = targetCacheManager.getClassViaInput(parentParameterClassInput).getOutput();
+
+                if (parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()) == null)
+                {
+                    System.out.println("Hello");
+                }
+
+
+                final String parentParameterMethodInput = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()).getInput();
+                final String targetParameterParentMethodOutput = targetCacheManager.getMethodViaInput(parentParameterMethodInput, targetParameterParentClassOutput, externalMapping.getParentMethodDescriptor()).getOutput();
+
+
+                entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), targetParameterParentClassOutput, targetParameterParentMethodOutput, externalMapping.getParentMethodDescriptor(), externalMapping.getType());
                 break;
         }
         return entry;
@@ -99,7 +112,7 @@ public final class CacheUtils {
                 entry = targetCacheManager.getFieldViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getType());
                 break;
             case PARAMETER:
-                entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getType());
+                entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodMapping(), externalMapping.getParentMethodDescriptor(), externalMapping.getType());
                 break;
         }
         return entry;
@@ -132,7 +145,7 @@ public final class CacheUtils {
                 final String parentParameterClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
                 final String parentParameterMethodInput = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()).getInput();
 
-                entry = targetCacheManager.getParameterViaOutput(externalMapping.getInput(), parentParameterClassInput, parentParameterMethodInput, externalMapping.getType());
+                entry = targetCacheManager.getParameterViaOutput(externalMapping.getInput(), parentParameterClassInput, parentParameterMethodInput, externalMapping.getParentMethodDescriptor(), externalMapping.getType());
                 break;
         }
         return entry;

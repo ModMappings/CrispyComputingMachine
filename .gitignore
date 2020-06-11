@@ -118,3 +118,4 @@ fabric.properties
 **/data/backup
 **/build
 /log/
+scripts

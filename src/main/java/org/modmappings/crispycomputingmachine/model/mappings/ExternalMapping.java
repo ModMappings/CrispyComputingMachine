@@ -151,8 +151,20 @@ public class ExternalMapping {
     @Override
     public String toString() {
         return "ExternalMapping{" +
-                "input='" + input + '\'' +
-                ", output='" + output + '\'' +
-                '}';
+                               "parentMethodMapping='" + parentMethodMapping + '\'' +
+                               ", parentMethodDescriptor='" + parentMethodDescriptor + '\'' +
+                               ", input='" + input + '\'' +
+                               ", output='" + output + '\'' +
+                               ", mappableType=" + mappableType +
+                               ", gameVersion='" + gameVersion + '\'' +
+                               ", releaseName='" + releaseName + '\'' +
+                               ", parentClassMapping='" + parentClassMapping + '\'' +
+                               ", type='" + type + '\'' +
+                               ", descriptor='" + descriptor + '\'' +
+                               ", signature='" + signature + '\'' +
+                               ", index=" + index +
+                               ", isStatic=" + isStatic +
+                               ", documentation='" + documentation + '\'' +
+                               '}';
     }
 }

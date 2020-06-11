@@ -16,7 +16,7 @@ public class YarnSkipIfReleaseExistsFilter extends AbstractSkipIfReleaseExistsFi
     public YarnSkipIfReleaseExistsFilter(final GameVersionRepository gameVersionRepository,
                                          final ReleaseRepository releaseRepository,
                                          final MappingTypeRepository mappingTypeRepository) {
-        super(Function.identity(),
+        super(releaseName -> releaseName.split("\\+")[0],
                 Constants.YARN_MAPPING_NAME,
                 gameVersionRepository,
                 releaseRepository,

@@ -1,17 +1,21 @@
 package org.modmappings.crispycomputingmachine.processors.release;
 
+import com.google.common.collect.Sets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalClass;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalVisibility;
+import org.modmappings.crispycomputingmachine.utils.MethodDesc;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Component
@@ -44,6 +48,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                             null,
                             null,
                             null,
+                            -1,
                             externalClass.isExternal(),
                             externalClass.getSuperClasses().stream().map(ExternalClass::getOutput).collect(Collectors.toList()),
                             new HashSet<>())
@@ -64,10 +69,48 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     null,
                     externalMethod.getDescriptor(),
                     externalMethod.getSignature(),
+                    -1,
                     externalMethod.isExternal(),
                     new ArrayList<>(),
                     externalMethod.getOverrides()))
                 .forEach(mappingsForVersion::add);
+
+            externalClass.getMethods().stream().flatMap(externalMethod -> {
+                    final MethodDesc desc = new MethodDesc(externalMethod.getDescriptor());
+                    final AtomicInteger initialIndex = new AtomicInteger(externalMethod.isStatic() ? 0 : 1);
+
+                    return desc.getArgs().stream().map(argType -> {
+                        final ExternalVanillaMapping mapping = new ExternalVanillaMapping(
+                                        externalMethod.getInput() + "_" + initialIndex.get(),
+                                        externalMethod.getOutput() + "_" + initialIndex.get(),
+                                        ExternalMappableType.PARAMETER,
+                                        item.getName(),
+                                        item.getReleasedOn(),
+                                        item.getName(),
+                                        externalClass.getOutput(),
+                                        externalMethod.getOutput(),
+                                        externalMethod.getDescriptor(),
+                                        ExternalVisibility.NOT_APPLICABLE,
+                                        false,
+                                        argType,
+                                        null,
+                                        null,
+                                        initialIndex.get(),
+                                        false,
+                                        new ArrayList<>(),
+                                        Sets.newHashSet()
+                        );
+
+                        if (argType.equals("D") || argType.equals("J"))
+                        {
+                            initialIndex.incrementAndGet();
+                        }
+                        initialIndex.incrementAndGet();
+
+                        return mapping;
+                    });
+                }
+            ).forEach(mappingsForVersion::add);
 
             externalClass.getFields().stream().map(externalField -> new ExternalVanillaMapping(
                     externalField.getInput(),
@@ -84,6 +127,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     externalField.getType(),
                     null,
                     null,
+                    -1,
                     false,
                     new ArrayList<>(),
                     new HashSet<>()))

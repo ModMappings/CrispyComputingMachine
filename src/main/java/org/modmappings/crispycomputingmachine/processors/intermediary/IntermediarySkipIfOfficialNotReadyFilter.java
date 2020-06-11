@@ -23,7 +23,7 @@ public class IntermediarySkipIfOfficialNotReadyFilter extends AbstractSkipIfMapp
         super(Function.identity(),
                 Function.identity(),
                 Constants.OFFICIAL_MAPPING_NAME,
-                ExternalMappableType.FIELD.name().toLowerCase(),
+                ExternalMappableType.PARAMETER.name().toLowerCase(),
                 gameVersionRepository,
                 releaseRepository,
                 mappingTypeRepository);

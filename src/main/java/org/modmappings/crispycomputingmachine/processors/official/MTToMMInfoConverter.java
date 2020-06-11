@@ -128,9 +128,6 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
 
                                         final Set<MethodOverrideRef> overrides = findAllOverrideReferenceFrom(entry.getKey(), obfClassName, entry.getValue(), classData, item);
                                         overrides.forEach(methodRef -> {
-                                            if (methodRef.getOwner().equals("java/lang/AutoCloseable"))
-                                                System.out.println("Found it");
-
                                             handlePotentiallyExternalClass(methodRef.getOwner(), false, methodRef.isFromInterface(), item, inputToClassMappingData, outputToClassMappingData);
                                         });
 

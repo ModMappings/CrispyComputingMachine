@@ -20,7 +20,7 @@ public class YarnSkipIfIntermediaryNotReadyFilter extends AbstractSkipIfMappingT
         super(releaseName -> releaseName.split("\\+")[0],
                 releaseName -> releaseName.split("\\+")[0],
                 Constants.INTERMEDIARY_MAPPING_NAME,
-                ExternalMappableType.FIELD.name().toLowerCase(),
+                ExternalMappableType.PARAMETER.name().toLowerCase(),
                 gameVersionRepository,
                 releaseRepository,
                 mappingTypeRepository);
