@@ -236,8 +236,17 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         while(data.getMappingToyData().containsKey(superName))
         {
             final MappingToyJarMetaData.ClassInfo superClassInfo = data.getMappingToyData().get(superName);
+
+            final String methodName = methodId.substring(0, methodId.indexOf("("));
+
             final Optional<String> superMethodInfo = superClassInfo.getMethods().keySet()
-                    .stream().filter(mi -> superClassInfo.getMethods().get(mi).getOverrides().contains(override)).findFirst();
+                                                                     .stream().filter(mi -> {
+                                final MappingToyJarMetaData.ClassInfo.MethodInfo superInfo = superClassInfo.getMethods().get(mi);
+                                if (!superInfo.getOverrides().contains(override))
+                                    return false;
+
+                                return methodId.equals(mi);
+                            }).findFirst();
 
             if (superMethodInfo.isPresent())
             {
@@ -267,7 +276,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                                     superName,
                                     methodId.substring(0, methodId.indexOf("(")),
                                     methodId.substring(methodId.indexOf("(")),
-                                    true
+                                            isInterface
                             )
                     );
 
@@ -283,7 +292,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                                     superName,
                                     overrideId.substring(0, overrideId.indexOf("(")),
                                     overrideId.substring(overrideId.indexOf("(")),
-                                    true
+                                            isInterface
                             )
                     );
 

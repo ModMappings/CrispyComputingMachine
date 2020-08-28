@@ -2,18 +2,15 @@ package org.modmappings.crispycomputingmachine.config;
 
 import org.modmappings.crispycomputingmachine.cache.*;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
-import org.modmappings.crispycomputingmachine.readers.others.IntermediaryMappingReader;
+import org.modmappings.crispycomputingmachine.readers.others.*;
 import org.modmappings.crispycomputingmachine.readers.official.OfficialMappingReader;
-import org.modmappings.crispycomputingmachine.readers.others.MCPConfigMappingReader;
-import org.modmappings.crispycomputingmachine.readers.others.YarnMappingReader;
 import org.modmappings.crispycomputingmachine.readers.policies.completion.MTRespectingReaderAndCompletionPolicy;
-import org.modmappings.crispycomputingmachine.tasks.DownloadIntermediaryManifestTasklet;
-import org.modmappings.crispycomputingmachine.tasks.DownloadMCPConfigManifestTasklet;
-import org.modmappings.crispycomputingmachine.tasks.DownloadMinecraftManifestTasklet;
-import org.modmappings.crispycomputingmachine.tasks.DownloadYarnManifestTasklet;
+import org.modmappings.crispycomputingmachine.tasks.*;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.modmappings.crispycomputingmachine.writers.OfficialMappingWriter;
 import org.modmappings.crispycomputingmachine.writers.chain.dependent.YarnMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.chain.dependent.mcp.MCPSnapshotMappingWriter;
+import org.modmappings.crispycomputingmachine.writers.chain.dependent.mcp.MCPStableMappingWriter;
 import org.modmappings.crispycomputingmachine.writers.chain.initial.IntermediaryMappingWriter;
 import org.modmappings.crispycomputingmachine.writers.chain.initial.MCPConfigMappingWriter;
 import org.springframework.batch.core.Step;
@@ -62,12 +59,32 @@ public class StepConfiguration {
 
     @Bean
     public Step downloadYarnMavenMetadataVersion(
-            final DownloadYarnManifestTasklet downloadYarnManifestTasklet
+      final DownloadYarnManifestTasklet downloadYarnManifestTasklet
     )
     {
         return stepBuilderFactory.get(Constants.DOWNLOAD_YARN_MAVEN_METADATA_STEP_NAME)
-                .tasklet(downloadYarnManifestTasklet)
-                .build();
+                 .tasklet(downloadYarnManifestTasklet)
+                 .build();
+    }
+
+    @Bean
+    public Step downloadMCPSnapshotMavenMetadataVersion(
+      final DownloadMCPSnapshotManifestTasklet downloadMCPSnapshotManifestTasklet
+    )
+    {
+        return stepBuilderFactory.get(Constants.DOWNLOAD_MCPSNAPSHOT_MAVEN_METADATA_STEP_NAME)
+                 .tasklet(downloadMCPSnapshotManifestTasklet)
+                 .build();
+    }
+
+    @Bean
+    public Step downloadMCPStableMavenMetadataVersion(
+      final DownloadMCPStableManifestTasklet downloadMCPStableManifestTasklet
+    )
+    {
+        return stepBuilderFactory.get(Constants.DOWNLOAD_MCPSTABLE_MAVEN_METADATA_STEP_NAME)
+                 .tasklet(downloadMCPStableManifestTasklet)
+                 .build();
     }
         
     @Bean
@@ -144,5 +161,45 @@ public class StepConfiguration {
                 .writer(writer)
                 .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager, intermediaryMappingCacheManager, yarnMappingCacheManager))
                 .build();
+    }
+
+    @Bean
+    public Step performMCPSnapshotImport(
+      final MCPSnapshotMappingReader reader,
+      final MCPSnapshotMappingWriter writer,
+      final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager,
+      final MCPConfigMappingCacheManager mcpConfigMappingCacheManager,
+      final MCPMappingCacheManager mcpMappingCacheManager
+    )
+    {
+        final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
+
+        return stepBuilderFactory
+                 .get(Constants.IMPORT_YARN_MAPPINGS)
+                 .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
+                 .reader(policyReader)
+                 .writer(writer)
+                 .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager, mcpConfigMappingCacheManager, mcpMappingCacheManager))
+                 .build();
+    }
+
+    @Bean
+    public Step performMCPStableImport(
+      final MCPStableMappingReader reader,
+      final MCPStableMappingWriter writer,
+      final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager,
+      final MCPConfigMappingCacheManager mcpConfigMappingCacheManager,
+      final MCPMappingCacheManager mcpMappingCacheManager
+    )
+    {
+        final MTRespectingReaderAndCompletionPolicy policyReader = new MTRespectingReaderAndCompletionPolicy(reader);
+
+        return stepBuilderFactory
+                 .get(Constants.IMPORT_YARN_MAPPINGS)
+                 .<ExternalVanillaMapping, ExternalVanillaMapping>chunk(policyReader)
+                 .reader(policyReader)
+                 .writer(writer)
+                 .listener(new ChunkCacheExecutionListener(vanillaAndExternalMappingCacheManager, mcpConfigMappingCacheManager, mcpMappingCacheManager))
+                 .build();
     }
 }

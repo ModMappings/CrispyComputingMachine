@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres
+    restart: unless-stopped
+    shm_size: 1g
+    command: ["postgres", "-c", "log_statement=all"]
+    volumes:
+      - ./databases/mcp_config:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=mmms
+      - POSTGRES_USER=mmms
+      - POSTGRES_PASSWORD=mmms

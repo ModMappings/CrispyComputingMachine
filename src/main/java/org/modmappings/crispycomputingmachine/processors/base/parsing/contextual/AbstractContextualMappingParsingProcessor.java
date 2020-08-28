@@ -24,6 +24,7 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
     Resource workingDirectory;
 
     private final Function<String, List<Path>> pathsExtractor;
+    private final IContextualParsingPreProcessor preProcessor;
     private final IContextualClassParser classParser;
     private final IContextualMethodParser methodParser;
     private final IContextualFieldParser fieldParser;
@@ -31,9 +32,21 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
     private final IContextualCommentParser commentParser;
     private final IContextualParsingPostProcessor postProcessor;
     private final String mappingTypeName;
+    private final boolean skipHeader;
 
-    protected AbstractContextualMappingParsingProcessor(final Function<String, List<Path>> pathsExtractor, final IContextualClassParser classParser, final IContextualMethodParser methodParser, final IContextualFieldParser fieldParser, final IContextualParameterParser parameterParser, final IContextualCommentParser commentParser, final IContextualParsingPostProcessor postProcessor, final String mappingTypeName) {
+    protected AbstractContextualMappingParsingProcessor(
+                    final Function<String, List<Path>> pathsExtractor,
+                    final IContextualParsingPreProcessor preProcessor,
+                    final IContextualClassParser classParser,
+                    final IContextualMethodParser methodParser,
+                    final IContextualFieldParser fieldParser,
+                    final IContextualParameterParser parameterParser,
+                    final IContextualCommentParser commentParser,
+                    final IContextualParsingPostProcessor postProcessor,
+                    final String mappingTypeName,
+                    boolean skipHeader) {
         this.pathsExtractor = pathsExtractor;
+        this.preProcessor = preProcessor;
         this.classParser = classParser;
         this.methodParser = methodParser;
         this.fieldParser = fieldParser;
@@ -41,6 +54,7 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
         this.commentParser = commentParser;
         this.postProcessor = postProcessor;
         this.mappingTypeName = mappingTypeName;
+        this.skipHeader = skipHeader;
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -62,9 +76,12 @@ public abstract class AbstractContextualMappingParsingProcessor implements ItemP
             final File targetFile = targetFilePath.toFile();
             if (!targetFile.exists())
                 throw new IllegalStateException(String.format("The path:%s does not exist.", path));
+
+            preProcessor.processFile(targetFile);
+
             try (InputStream in = new FileInputStream(targetFile)) {
                 List<String> lines = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines()
-                        .skip(1) //Skip the damn header.
+                        .skip(skipHeader ? 1 : 0) //Skip the damn header.
                         .filter(l -> !l.isEmpty()) //Remove Empty lines
                         .collect(Collectors.toList());
 

@@ -1,7 +1,7 @@
 package org.modmappings.crispycomputingmachine.processors.base.parsing.simple;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -13,14 +13,12 @@ import org.springframework.core.io.Resource;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public abstract class AbstractSimpleMappingParsingProcessor implements ItemProcessor<String, List<ExternalMapping>> {
+public abstract class AbstractSimpleMappingParsingProcessor implements ItemProcessor<String, List<ExternalMapping>>
+{
 
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -28,83 +26,131 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
     Resource workingDirectory;
 
     private final Function<String, List<Path>> pathsExtractor;
-    private final ISimpleClassParser classParser;
-    private final ISimpleMethodParser methodParser;
-    private final ISimpleFieldParser fieldParser;
-    private final ISimpleParameterParser parameterParser;
-    private final String mappingTypeName;
+    private final ISimpleClassParser           classParser;
+    private final IClassesPostProcessor        classesPostProcessor;
+    private final ISimpleMethodParser          methodParser;
+    private final IMethodsPostProcessor        methodsPostProcessor;
+    private final ISimpleFieldParser           fieldParser;
+    private final IFieldsPostProcessor         fieldsPostProcessor;
+    private final ISimpleParameterParser       parameterParser;
+    private final IParametersPostProcessor     parametersPostProcessor;
+    private final String                       mappingTypeName;
 
-    protected AbstractSimpleMappingParsingProcessor(final Function<String, List<Path>> pathsExtractor, final ISimpleClassParser classParser, final ISimpleMethodParser methodParser, final ISimpleFieldParser fieldParser, final ISimpleParameterParser parameterParser, final String mappingTypeName) {
+    protected AbstractSimpleMappingParsingProcessor(
+      final Function<String, List<Path>> pathsExtractor,
+      final ISimpleClassParser classParser,
+      final IClassesPostProcessor classesPostProcessor,
+      final ISimpleMethodParser methodParser,
+      final IMethodsPostProcessor methodsPostProcessor,
+      final ISimpleFieldParser fieldParser,
+      final IFieldsPostProcessor fieldsPostProcessor,
+      final ISimpleParameterParser parameterParser,
+      final IParametersPostProcessor parametersPostProcessor,
+      final String mappingTypeName)
+    {
         this.pathsExtractor = pathsExtractor;
         this.classParser = classParser;
+        this.classesPostProcessor = classesPostProcessor;
         this.methodParser = methodParser;
+        this.methodsPostProcessor = methodsPostProcessor;
         this.fieldParser = fieldParser;
+        this.fieldsPostProcessor = fieldsPostProcessor;
         this.parameterParser = parameterParser;
+        this.parametersPostProcessor = parametersPostProcessor;
         this.mappingTypeName = mappingTypeName;
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
-    public List<ExternalMapping> process(@NotNull final String item) throws Exception {
+    public List<ExternalMapping> process(@NotNull final String item) throws Exception
+    {
         final List<Path> pathsToParse = this.pathsExtractor.apply(item);
         final File workingDirectoryFile = workingDirectory.getFile();
         workingDirectoryFile.mkdirs();
 
         final Path workingDirectoryPath = workingDirectoryFile.toPath();
 
-        final Map<String, ExternalMapping> classes = Maps.newHashMap();
-        final Map<String, ExternalMapping> methods = Maps.newHashMap();
-        final List<ExternalMapping> fields = Lists.newArrayList();
-        final List<ExternalMapping> parameters = Lists.newArrayList();
+        final Set<ExternalMapping> classes = Sets.newConcurrentHashSet();
+        final Set<ExternalMapping> methods = Sets.newConcurrentHashSet();
+        final Set<ExternalMapping> fields = Sets.newConcurrentHashSet();
+        final Set<ExternalMapping> parameters = Sets.newConcurrentHashSet();
+
+        final Map<Path, List<String>> pathToLinesMap = Maps.newHashMap();
 
         pathsToParse.forEach(path -> {
             final Path targetFilePath = workingDirectoryPath.resolve(path);
             final File targetFile = targetFilePath.toFile();
             if (!targetFile.exists())
+            {
                 throw new IllegalStateException(String.format("The path:%s does not exist.", path));
+            }
 
-            try (InputStream in = new FileInputStream(targetFile)) {
+            try (InputStream in = new FileInputStream(targetFile))
+            {
                 List<String> lines = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines()
-                        .skip(1) //Skip the damn header.
-                        .filter(l -> !l.isEmpty()) //Remove Empty lines
-                        .collect(Collectors.toList());
+                                       .skip(1) //Skip the damn header.
+                                       .filter(l -> !l.isEmpty()) //Remove Empty lines
+                                       .collect(Collectors.toList());
 
-                final Map<String, ExternalMapping> fileClasses = lines.parallelStream()
-                        .map(line -> this.classParser.parse(line, item))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toMap(ExternalMapping::getInput, Function.identity()));
-
-                classes.putAll(fileClasses);
-
-                final Map<String, ExternalMapping> fileMethods = lines.parallelStream()
-                        .map(line -> this.methodParser.parse(classes, line, item))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toMap(ExternalMapping::getInput, Function.identity(), (l, r) -> r));
-
-                methods.putAll(fileMethods);
-
-                final List<ExternalMapping> fileFields = lines.parallelStream()
-                        .map(line -> this.fieldParser.parse(classes, line, item))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-
-                fields.addAll(fileFields);
-
-                final List<ExternalMapping> fileParameters = lines.parallelStream()
-                        .map(line -> this.parameterParser.parse(methods, line, item))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-
-                parameters.addAll(fileParameters);
-            } catch (IOException e) {
+                pathToLinesMap.put(path, lines);
+            }
+            catch (IOException e)
+            {
                 LOGGER.warn(String.format("Failed to parse file: %s for mappings: %s", path, mappingTypeName), e);
                 throw new IllegalStateException("Failed to parse file.", e);
             }
         });
 
+        pathToLinesMap.keySet().parallelStream().filter(this.classParser::acceptsFile).forEach(path -> {
+            final List<String> lines = pathToLinesMap.get(path);
+            final Set<ExternalMapping> fileClasses = lines.parallelStream()
+                                                               .flatMap(line -> this.classParser.parse(line, item).stream())
+                                                               .filter(Objects::nonNull)
+                                                               .collect(Collectors.toSet());
+
+            classes.addAll(fileClasses);
+        });
+
+        this.classesPostProcessor.apply(item, classes);
+
+        pathToLinesMap.keySet().parallelStream().filter(this.methodParser::acceptsFile).forEach(path -> {
+            final List<String> lines = pathToLinesMap.get(path);
+            final Set<ExternalMapping> fileMethods = lines.parallelStream()
+                                                               .flatMap(line -> this.methodParser.parse(classes, line, item).stream())
+                                                               .collect(Collectors.toSet());
+
+            methods.addAll(fileMethods);
+        });
+
+        this.methodsPostProcessor.apply(item, classes, methods);
+
+        pathToLinesMap.keySet().parallelStream().filter(this.fieldParser::acceptsFile).forEach(path -> {
+            final List<String> lines = pathToLinesMap.get(path);
+            final Set<ExternalMapping> fileFields = lines.parallelStream()
+                                                              .flatMap(line -> this.fieldParser.parse(classes, line, item).stream())
+                                                              .filter(Objects::nonNull)
+                                                              .collect(Collectors.toSet());
+
+            fields.addAll(fileFields);
+        });
+
+        this.fieldsPostProcessor.apply(item, classes, fields);
+
+        pathToLinesMap.keySet().parallelStream().filter(this.parameterParser::acceptsFile).forEach(path -> {
+            final List<String> lines = pathToLinesMap.get(path);
+            final Set<ExternalMapping> fileParameters = lines.parallelStream()
+                                                                  .flatMap(line -> this.parameterParser.parse(methods, line, item).stream())
+                                                                  .filter(Objects::nonNull)
+                                                                  .collect(Collectors.toSet());
+
+            parameters.addAll(fileParameters);
+        });
+
+        this.parametersPostProcessor.apply(item, classes, methods, parameters);
+
         final List<ExternalMapping> results = new ArrayList<>();
-        results.addAll(classes.values());
-        results.addAll(methods.values());
+        results.addAll(classes);
+        results.addAll(methods);
         results.addAll(fields);
         results.addAll(parameters);
         return results;

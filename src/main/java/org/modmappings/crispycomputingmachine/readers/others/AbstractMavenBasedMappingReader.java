@@ -28,7 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class AbstractMavenBasedMappingReader extends AbstractItemStreamItemReader<ExternalMapping> implements PeekableItemReader<ExternalMapping> {
+public abstract class AbstractMavenBasedMappingReader extends AbstractItemStreamItemReader<ExternalMapping> implements PeekableItemReader<ExternalMapping> {
 
     private static final Logger LOGGER = LogManager.getLogger();
 

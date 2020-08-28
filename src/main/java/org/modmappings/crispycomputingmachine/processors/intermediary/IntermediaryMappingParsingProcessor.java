@@ -16,6 +16,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.AbstractContextualMappingParsingProcessor;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualCommentParser;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParameterParser;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParsingPreProcessor;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.modmappings.crispycomputingmachine.utils.MethodDesc;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,7 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
     protected IntermediaryMappingParsingProcessor(VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager) {
         super(
                         (releaseName) -> Lists.asList(Path.of(releaseName, Constants.INTERMEDIARY_WORKING_DIR, "mappings", "mappings.tiny"), new Path[0]),
+                        IContextualParsingPreProcessor.NOOP,
                         (line, releaseName) -> {
                             if (!line.startsWith("CLASS")) {
                                 return null;
@@ -37,7 +39,7 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
                             final String[] components = line.split("\t");
                             String parentClassOut = null;
                             if (components[2].contains("$")) {
-                                parentClassOut = components[2].substring(0, components[2].indexOf("$"));
+                                parentClassOut = components[2].substring(0, components[2].lastIndexOf("$"));
                             }
 
                             return new ExternalMapping(
@@ -174,7 +176,10 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
                                                                                     method.isStatic()
                                                                     );
                                                                 })
-                                                .forEach(methods::add);
+                                                .forEach(em -> {
+                                                    methods.add(em);
+                                                    methodMappingMap.put(Tuples.of(em.getParentClassMapping(), em.getInput(), em.getDescriptor()), em);
+                                                });
                             });
 
                             methods.stream().flatMap(externalMapping -> {
@@ -207,7 +212,8 @@ public class IntermediaryMappingParsingProcessor extends AbstractContextualMappi
                                 });
                             }).forEach(parameters::add);
                         },
-                        Constants.INTERMEDIARY_MAPPING_NAME
+                        Constants.INTERMEDIARY_MAPPING_NAME,
+                        true
         );
     }
 }

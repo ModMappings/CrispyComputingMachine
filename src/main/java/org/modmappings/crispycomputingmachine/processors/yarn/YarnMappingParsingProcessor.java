@@ -10,6 +10,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableTyp
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.AbstractContextualMappingParsingProcessor;
 import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParsingPostProcessor;
+import org.modmappings.crispycomputingmachine.processors.base.parsing.contextual.IContextualParsingPreProcessor;
 import org.modmappings.crispycomputingmachine.utils.CacheUtils;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.modmappings.crispycomputingmachine.utils.MethodDesc;
@@ -30,6 +31,7 @@ public class YarnMappingParsingProcessor extends AbstractContextualMappingParsin
             ) {
         super(
                 (releaseName) -> Lists.asList(Paths.get(releaseName, Constants.YARN_WORKING_DIR, "mappings", "mappings.tiny"), new Path[0]),
+                        IContextualParsingPreProcessor.NOOP,
                 (line, releaseName) -> {
                     if (!line.startsWith("c"))
                         return null;
@@ -42,7 +44,7 @@ public class YarnMappingParsingProcessor extends AbstractContextualMappingParsin
 
                     String parentClassOut = null;
                     if (components[2].contains("$"))
-                        parentClassOut = components[2].substring(0, components[2].indexOf("$"));
+                        parentClassOut = components[2].substring(0, components[2].lastIndexOf("$"));
 
                     return new ExternalMapping(
                             components[1],
@@ -213,7 +215,9 @@ public class YarnMappingParsingProcessor extends AbstractContextualMappingParsin
                     final String[] relevantComponents = Arrays.copyOfRange(components, 1, components.length);
                     return String.join("\t", relevantComponents);
                 },
-                IContextualParsingPostProcessor.NOOP, Constants.YARN_MAPPING_NAME
+                IContextualParsingPostProcessor.NOOP,
+                        Constants.YARN_MAPPING_NAME,
+                        true
         );
     }
 }

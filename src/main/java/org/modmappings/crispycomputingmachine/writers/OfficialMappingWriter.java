@@ -6,16 +6,12 @@ import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
 import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
-import org.modmappings.crispycomputingmachine.utils.CacheUtils;
-import org.modmappings.crispycomputingmachine.utils.Constants;
-import org.modmappings.crispycomputingmachine.utils.GameVersionUtils;
-import org.modmappings.crispycomputingmachine.utils.MethodRef;
+import org.modmappings.crispycomputingmachine.utils.*;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.core.MappingTypeDMO;
 import org.modmappings.mmms.repository.model.core.release.ReleaseComponentDMO;
 import org.modmappings.mmms.repository.model.core.release.ReleaseDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.*;
-import org.modmappings.mmms.repository.model.mapping.mappings.DistributionDMO;
 import org.modmappings.mmms.repository.model.mapping.mappings.MappingDMO;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.data.r2dbc.core.DatabaseClient;
@@ -155,7 +151,7 @@ public class OfficialMappingWriter implements ItemWriter<ExternalVanillaMapping>
                             evm.getInput(),
                             evm.getOutput(),
                             "",
-                            DistributionDMO.UNKNOWN
+                            evm.getExternalDistribution().getDmo()
                     );
                     mappingsToSave.put(evm, mapping);
 
@@ -170,6 +166,7 @@ public class OfficialMappingWriter implements ItemWriter<ExternalVanillaMapping>
                             mappable,
                             versionedMappable,
                             mapping,
+                            releaseComponent,
                             mappingCacheManager
                     );
                 });
@@ -211,6 +208,28 @@ public class OfficialMappingWriter implements ItemWriter<ExternalVanillaMapping>
                         inheritanceDataToSave.add(inheritanceData);
                     }
                 });
+
+        items.stream().filter(evm -> evm.getMappableType() == ExternalMappableType.PARAMETER)
+          .forEach(evm -> {
+              final VersionedMappableDMO versionedMappable = versionedMappablesToSave.get(evm);
+
+              for (final ParameterRef parameter : evm.getParameterOverrides()) {
+                  final MappingCacheEntry overridenParameter = mappingCacheManager.getParameterViaOutput(parameter.getMethod()+ "_" + parameter.getIndex(), parameter.getOwner(), parameter.getMethod(), parameter.getDesc(), parameter.getType());
+                  if (overridenParameter == null) {
+                      LOGGER.warn("No override information found for: " + parameter);
+                      continue;
+                  }
+
+                  final UUID overridenId = overridenParameter.getVersionedMappableId();
+
+                  final InheritanceDataDMO inheritanceData = new InheritanceDataDMO(
+                    UUID.randomUUID(),
+                    overridenId,
+                    versionedMappable.getId()
+                  );
+                  inheritanceDataToSave.add(inheritanceData);
+              }
+          });
 
         if (gameVersionsToSave.size() > 0)
         {

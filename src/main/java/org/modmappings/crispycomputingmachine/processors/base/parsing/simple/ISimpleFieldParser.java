@@ -4,19 +4,31 @@ import org.jetbrains.annotations.NotNull;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 
 import javax.annotation.Nullable;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-@FunctionalInterface
 public interface ISimpleFieldParser {
 
-    @Nullable
-    ExternalMapping parse(@NotNull final Map<String, ExternalMapping> classes, @NotNull final String line, final String releaseName);
+    boolean acceptsFile(@NotNull Path path);
+
+    @NotNull
+    Collection<ExternalMapping> parse(@NotNull final Set<ExternalMapping> classes, @NotNull final String line, final String releaseName);
 
     ISimpleFieldParser NOOP = new ISimpleFieldParser() {
-        @Nullable
         @Override
-        public ExternalMapping parse(final @NotNull Map<String, ExternalMapping> classes, final @NotNull String line, final String releaseName) {
-            return null;
+        public boolean acceptsFile(@NotNull final Path path)
+        {
+            return false;
+        }
+
+        @Override
+        public @NotNull Collection<ExternalMapping> parse(
+          final @NotNull Set<ExternalMapping> classes, final @NotNull String line, final String releaseName)
+        {
+            return List.of();
         }
     };
 }

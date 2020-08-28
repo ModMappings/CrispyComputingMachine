@@ -80,9 +80,6 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
         final Map<UUID, VersionedMappableDMO> versionedMappables = getVersionedMappablesForGameVersion(first.getGameVersion());
 
         mappings.forEach(evm -> {
-            if (evm.getMappableType() == ExternalMappableType.PARAMETER)
-                System.out.println("Found it.");
-
             if (!CacheUtils.alreadyExistsOnOutputFromInput(evm, dependentMappingCacheManager, targetChainCacheManager))
             {
                 LOGGER.warn(String.format("Could not find a %s mapping for %s external mapping: %s", dependentMappingName, mappingName, evm));
@@ -104,7 +101,7 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
                         evm.getReleaseName(),
                         gameVersion.getId(),
                         mappingType.getId(),
-                        GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
+                        this.isReleaseSnapshot(evm.getGameVersion(), evm.getReleaseName()),
                         "new"
                 );
 
@@ -190,32 +187,39 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
                 }
             }
 
-            final MappingDMO mapping = new MappingDMO(
-                    UUID.randomUUID(),
-                    Constants.SYSTEM_ID,
-                    Timestamp.from(Instant.now()),
-                    versionedMappableId,
-                    mappingType.getId(),
-                    evm.getInput(),
-                    evm.getOutput(),
-                    "",
-                    DistributionDMO.UNKNOWN
-            );
-            mappingsToSave.put(evm, mapping);
+            final MappingCacheEntry currentEntry = CacheUtils.getOutputMappingCacheEntry(evm, targetChainCacheManager);
+            final boolean isOldMapping = currentEntry != null && currentEntry.getInput().equals(evm.getInput()) && currentEntry.getOutput().equals(evm.getOutput()) && versionedMappableId.equals(currentEntry.getVersionedMappableId());
+            final UUID mappingId = isOldMapping ? currentEntry.getMappingId() : UUID.randomUUID();
 
             final ReleaseComponentDMO releaseComponent = new ReleaseComponentDMO(
                     UUID.randomUUID(),
                     release.getId(),
-                    mapping.getId()
+                    mappingId
             );
             releaseComponentsToSave.put(evm, releaseComponent);
 
-            CacheUtils.registerNewEntry(
-                    targetMappable,
-                    versionedMappables.get(versionedMappableId),
-                    mapping,
-                    targetChainCacheManager
-            );
+            if (!isOldMapping) {
+                final MappingDMO mapping = new MappingDMO(
+                                mappingId,
+                                Constants.SYSTEM_ID,
+                                Timestamp.from(Instant.now()),
+                                versionedMappableId,
+                                mappingType.getId(),
+                                evm.getInput(),
+                                evm.getOutput(),
+                                "",
+                                evm.getExternalDistribution().getDmo()
+                );
+                mappingsToSave.put(evm, mapping);
+
+                CacheUtils.registerNewEntry(
+                                targetMappable,
+                                versionedMappables.get(versionedMappableId),
+                                mapping,
+                                releaseComponent,
+                                targetChainCacheManager
+                );
+            }
         });
 
         if (mappablesToSave.size() > 0)
@@ -346,5 +350,8 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
         );
     }
 
+    protected boolean isReleaseSnapshot(final String gameVersion, final String releaseName) {
+        return GameVersionUtils.isPreRelease(gameVersion) || GameVersionUtils.isSnapshot(gameVersion);
+    }
 
 }

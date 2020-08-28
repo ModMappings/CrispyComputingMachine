@@ -5,6 +5,7 @@ import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
 import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
+import org.modmappings.mmms.repository.model.core.release.ReleaseComponentDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.MappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappable.VersionedMappableDMO;
 import org.modmappings.mmms.repository.model.mapping.mappings.MappingDMO;
@@ -67,30 +68,49 @@ public final class CacheUtils {
                 entry = targetCacheManager.getClassViaInput(externalMapping.getInput());
                 break;
             case METHOD:
-                final String parentMethodClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
-                final String targetMethodParentClassOutput = targetCacheManager.getClassViaInput(parentMethodClassInput).getOutput();
+                final MappingCacheEntry parentMethodClass = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping());
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && parentMethodClass == null)
+                    return null;
+                final String parentMethodClassInput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : parentMethodClass.getInput();
+                
+                final MappingCacheEntry targetMethodParentClass = targetCacheManager.getClassViaInput(parentMethodClassInput);
+                final String targetMethodParentClassOutput = targetMethodParentClass.getOutput();
 
                 entry = targetCacheManager.getMethodViaInput(externalMapping.getInput(), targetMethodParentClassOutput, externalMapping.getDescriptor());
                 break;
             case FIELD:
-                final String parentFieldClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
-                final String targetFieldParentClassOutput = targetCacheManager.getClassViaInput(parentFieldClassInput).getOutput();
+                final MappingCacheEntry parentFieldClass = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping());
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && parentFieldClass == null)
+                    return null;
+                final String parentFieldClassInput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : parentFieldClass.getInput();
+                
+                final MappingCacheEntry targetFieldParentClass = targetCacheManager.getClassViaInput(parentFieldClassInput);
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && targetFieldParentClass == null)
+                    return null;
+                final String targetFieldParentClassOutput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : targetFieldParentClass.getOutput();
 
                 entry = targetCacheManager.getFieldViaInput(externalMapping.getInput(), targetFieldParentClassOutput, externalMapping.getType());
                 break;
             case PARAMETER:
-                final String parentParameterClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
-                final String targetParameterParentClassOutput = targetCacheManager.getClassViaInput(parentParameterClassInput).getOutput();
+                final MappingCacheEntry parentParameterClass = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping());
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && parentParameterClass == null)
+                    return null;
+                final String parentParameterClassInput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : parentParameterClass.getInput();
 
-                if (parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()) == null)
-                {
-                    System.out.println("Hello");
-                }
+                final MappingCacheEntry targetParameterParentClass = targetCacheManager.getClassViaInput(parentParameterClassInput);
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && targetParameterParentClass == null)
+                    return null;
+                final String targetParameterParentClassOutput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : targetParameterParentClass.getOutput();
 
+                final MappingCacheEntry parentParameterMethod = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor());
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && parentParameterMethod == null)
+                    return null;
+                final String parentParameterMethodInput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : parentParameterMethod.getInput();
 
-                final String parentParameterMethodInput = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()).getInput();
-                final String targetParameterParentMethodOutput = targetCacheManager.getMethodViaInput(parentParameterMethodInput, targetParameterParentClassOutput, externalMapping.getParentMethodDescriptor()).getOutput();
-
+                final MappingCacheEntry targetParameterParentMethod = targetCacheManager.getMethodViaInput(parentParameterMethodInput, targetParameterParentClassOutput, externalMapping.getParentMethodDescriptor());
+                if (!targetCacheManager.usesMappingOnlyForInputKeys() && targetParameterParentMethod == null)
+                    return null;
+                final String targetParameterParentMethodOutput = targetCacheManager.usesMappingOnlyForInputKeys() ? "" : targetParameterParentMethod.getOutput();
 
                 entry = targetCacheManager.getParameterViaInput(externalMapping.getInput(), targetParameterParentClassOutput, targetParameterParentMethodOutput, externalMapping.getParentMethodDescriptor(), externalMapping.getType());
                 break;
@@ -132,18 +152,31 @@ public final class CacheUtils {
                 entry = targetCacheManager.getClassViaOutput(externalMapping.getInput());
                 break;
             case METHOD:
-                final String parentMethodClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
+                final MappingCacheEntry parentMethodClass = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping());
+                if (!targetCacheManager.usesMappingOnlyForOutputKeys() && parentMethodClass == null)
+                    return null;
+                final String parentMethodClassInput = targetCacheManager.usesMappingOnlyForOutputKeys() ? "" : parentMethodClass.getInput();
 
                 entry = targetCacheManager.getMethodViaOutput(externalMapping.getInput(), parentMethodClassInput, externalMapping.getDescriptor());
                 break;
             case FIELD:
-                final String parentFieldClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
+                final MappingCacheEntry parentFieldClass = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping());
+                if (!targetCacheManager.usesMappingOnlyForOutputKeys() && parentFieldClass == null)
+                    return null;
+                final String parentFieldClassInput = targetCacheManager.usesMappingOnlyForOutputKeys() ? "" : parentFieldClass.getInput();
 
                 entry = targetCacheManager.getFieldViaOutput(externalMapping.getInput(), parentFieldClassInput, externalMapping.getType());
                 break;
             case PARAMETER:
-                final String parentParameterClassInput = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping()).getInput();
-                final String parentParameterMethodInput = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor()).getInput();
+                final MappingCacheEntry parentParameterClass = parentRemappingManager.getClassViaOutput(externalMapping.getParentClassMapping());
+                if (!targetCacheManager.usesMappingOnlyForOutputKeys() && parentParameterClass == null)
+                    return null;
+                final String parentParameterClassInput = targetCacheManager.usesMappingOnlyForOutputKeys() ? "" : parentParameterClass.getInput();
+
+                final MappingCacheEntry parentParameterMethod = parentRemappingManager.getMethodViaOutput(externalMapping.getParentMethodMapping(), externalMapping.getParentClassMapping(), externalMapping.getParentMethodDescriptor());
+                if (!targetCacheManager.usesMappingOnlyForOutputKeys() && parentParameterMethod == null)
+                    return null;
+                final String parentParameterMethodInput = targetCacheManager.usesMappingOnlyForOutputKeys() ? "" : parentParameterMethod.getInput();
 
                 entry = targetCacheManager.getParameterViaOutput(externalMapping.getInput(), parentParameterClassInput, parentParameterMethodInput, externalMapping.getParentMethodDescriptor(), externalMapping.getType());
                 break;
@@ -181,22 +214,23 @@ public final class CacheUtils {
             final MappableDMO mappable,
             final VersionedMappableDMO versionedMappable,
             final MappingDMO mapping,
+            final ReleaseComponentDMO releaseComponentDMO,
             final AbstractMappingCacheManager mappingCacheManager
     )
     {
         switch (mappable.getType())
         {
             case CLASS:
-                mappingCacheManager.registerNewClass(mappable, versionedMappable, mapping);
+                mappingCacheManager.registerNewClass(mappable, versionedMappable, mapping, releaseComponentDMO);
                 break;
             case METHOD:
-                mappingCacheManager.registerNewMethod(mappable, versionedMappable, mapping);
+                mappingCacheManager.registerNewMethod(mappable, versionedMappable, mapping, releaseComponentDMO);
                 break;
             case FIELD:
-                mappingCacheManager.registerNewField(mappable, versionedMappable, mapping);
+                mappingCacheManager.registerNewField(mappable, versionedMappable, mapping, releaseComponentDMO);
                 break;
             case PARAMETER:
-                mappingCacheManager.registerNewParameter(mappable, versionedMappable, mapping);
+                mappingCacheManager.registerNewParameter(mappable, versionedMappable, mapping, releaseComponentDMO);
                 break;
         }
     }

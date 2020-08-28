@@ -38,6 +38,12 @@ public class SchedulerConfig {
 
     @Value("${importer.yarn.schedule:30 */1 * * * ?}")
     String yarnSchedule;
+    
+    @Value("${importer.mcpsnapshot.schedule:15 */1 * * * ?}")
+    String mcpSnapshotSchedule;
+    
+    @Value("${importer.mcpstable.schedule:15 */1 * * * ?}")
+    String mcpStableSchedule;
 
 
     public SchedulerConfig(JobLauncher jobLauncher, final JobLocator jobLocator) {
@@ -182,6 +188,70 @@ public class SchedulerConfig {
     }
 
     @Bean
+    public JobDetail importMCPSnapshotJobDetail() {
+        //Set Job data map
+        JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap.put("jobName", "importMCPSnapshotJob");
+        jobDataMap.put("jobLauncher", jobLauncher);
+        jobDataMap.put("jobLocator", jobLocator);
+
+        return JobBuilder.newJob(CCMQuartzJob.class)
+                 .withIdentity("importMCPSnapshotJob")
+                 .setJobData(jobDataMap)
+                 .storeDurably()
+                 .build();
+    }
+
+    @Bean
+    public Trigger importMCPSnapshotJobTrigger(
+      final JobDetail importMCPSnapshotJobDetail
+    )
+    {
+        final CronScheduleBuilder cronScheduleBuilder = CronScheduleBuilder.cronSchedule(mcpSnapshotSchedule)
+                                                          .withMisfireHandlingInstructionIgnoreMisfires()
+                                                          .inTimeZone(TimeZone.getDefault());
+
+        return TriggerBuilder
+                 .newTrigger()
+                 .forJob(importMCPSnapshotJobDetail)
+                 .withIdentity("importMCPSnapshotJobTrigger")
+                 .withSchedule(cronScheduleBuilder)
+                 .build();
+    }
+
+    @Bean
+    public JobDetail importMCPStableJobDetail() {
+        //Set Job data map
+        JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap.put("jobName", "importMCPStableJob");
+        jobDataMap.put("jobLauncher", jobLauncher);
+        jobDataMap.put("jobLocator", jobLocator);
+
+        return JobBuilder.newJob(CCMQuartzJob.class)
+                 .withIdentity("importMCPStableJob")
+                 .setJobData(jobDataMap)
+                 .storeDurably()
+                 .build();
+    }
+
+    @Bean
+    public Trigger importMCPStableJobTrigger(
+      final JobDetail importMCPStableJobDetail
+    )
+    {
+        final CronScheduleBuilder cronScheduleBuilder = CronScheduleBuilder.cronSchedule(mcpStableSchedule)
+                                                          .withMisfireHandlingInstructionIgnoreMisfires()
+                                                          .inTimeZone(TimeZone.getDefault());
+
+        return TriggerBuilder
+                 .newTrigger()
+                 .forJob(importMCPStableJobDetail)
+                 .withIdentity("importMCPStableJobTrigger")
+                 .withSchedule(cronScheduleBuilder)
+                 .build();
+    }
+
+    @Bean
     public SchedulerFactoryBean importMinecraftScheduler(
             final JobDetail importMinecraftVersionsJobDetail,
             final Trigger importMinecraftVersionsJobTrigger,
@@ -236,6 +306,34 @@ public class SchedulerConfig {
         scheduler.setTriggers(importMCPConfigJobTrigger);
         scheduler.setQuartzProperties(quartzProperties);
         scheduler.setJobDetails(importMCPConfigJobDetail);
+        return scheduler;
+    }
+    
+    @Bean
+    public SchedulerFactoryBean importMCPSnapshotScheduler(
+      final JobDetail importMCPSnapshotJobDetail,
+      final Trigger importMCPSnapshotJobTrigger,
+      final Properties quartzProperties
+    ) throws IOException
+    {
+        SchedulerFactoryBean scheduler = new SchedulerFactoryBean();
+        scheduler.setTriggers(importMCPSnapshotJobTrigger);
+        scheduler.setQuartzProperties(quartzProperties);
+        scheduler.setJobDetails(importMCPSnapshotJobDetail);
+        return scheduler;
+    }
+
+    @Bean
+    public SchedulerFactoryBean importMCPStableScheduler(
+      final JobDetail importMCPStableJobDetail,
+      final Trigger importMCPStableJobTrigger,
+      final Properties quartzProperties
+    ) throws IOException
+    {
+        SchedulerFactoryBean scheduler = new SchedulerFactoryBean();
+        scheduler.setTriggers(importMCPStableJobTrigger);
+        scheduler.setQuartzProperties(quartzProperties);
+        scheduler.setJobDetails(importMCPStableJobDetail);
         return scheduler;
     }
 

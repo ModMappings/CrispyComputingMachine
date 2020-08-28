@@ -8,7 +8,7 @@ public final class RegexUtils {
 
     public static String createFullWordRegex(String regex)
     {
-        return "\\A" + regex.replace(".", "\\.") + "\\Z";
+        return "\\A" + regex.replace(".", "\\.").replace("+", "\\+") + "\\Z";
     }
 
     public static String createClassTargetingRegex(String className)

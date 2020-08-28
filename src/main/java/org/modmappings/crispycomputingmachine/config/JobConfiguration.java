@@ -60,15 +60,45 @@ public class JobConfiguration {
 
     @Bean
     public Job importMCPConfigJob(
-            final Step downloadMCPConfigMavenMetadataVersion,
-            final Step performMCPConfigImport
+      final Step downloadMCPConfigMavenMetadataVersion,
+      final Step performMCPConfigImport
     )
     {
         return jobBuilderFactory.get("importMCPConfigJob")
-                .preventRestart()
-                .incrementer(new RunIdIncrementer())
-                .start(downloadMCPConfigMavenMetadataVersion)
-                .next(performMCPConfigImport)
-                .build();
+                 .preventRestart()
+                 .incrementer(new RunIdIncrementer())
+                 .start(downloadMCPConfigMavenMetadataVersion)
+                 .next(performMCPConfigImport)
+                 .build();
     }
+
+    @Bean
+    public Job importMCPSnapshotJob(
+      final Step downloadMCPSnapshotMavenMetadataVersion,
+      final Step performMCPSnapshotImport
+    )
+    {
+        return jobBuilderFactory.get("importMCPSnapshotJob")
+                 .preventRestart()
+                 .incrementer(new RunIdIncrementer())
+                 .start(downloadMCPSnapshotMavenMetadataVersion)
+                 .next(performMCPSnapshotImport)
+                 .build();
+    }
+
+    @Bean
+    public Job importMCPStableJob(
+      final Step downloadMCPStableMavenMetadataVersion,
+      final Step performMCPStableImport
+    )
+    {
+        return jobBuilderFactory.get("importMCPStableJob")
+                 .preventRestart()
+                 .incrementer(new RunIdIncrementer())
+                 .start(downloadMCPStableMavenMetadataVersion)
+                 .next(performMCPStableImport)
+                 .build();
+    }
+
+
 }

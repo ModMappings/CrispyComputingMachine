@@ -24,7 +24,7 @@ public class MCPConfigSkipIfOfficialNotReadyFilter extends AbstractSkipIfMapping
                 releaseName -> releaseName.split("-")[0],
                 releaseName -> releaseName.split("-")[0],
                 Constants.OFFICIAL_MAPPING_NAME,
-                ExternalMappableType.FIELD.name().toLowerCase(),
+                ExternalMappableType.PARAMETER.name().toLowerCase(),
                 gameVersionRepository,
                 releaseRepository,
                 mappingTypeRepository

@@ -4,7 +4,9 @@ import com.google.common.collect.Lists;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.cache.AbstractMappingCacheManager;
+import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
 import org.modmappings.crispycomputingmachine.cache.VanillaAndExternalMappingCacheManager;
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.utils.CacheUtils;
@@ -80,6 +82,9 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
         final Map<UUID, VersionedMappableDMO> versionedMappables = getVersionedMappablesForGameVersion(first.getGameVersion());
 
         items.forEach(evm -> {
+            if (evm.getMappableType() == ExternalMappableType.PARAMETER && evm.getParentMethodMapping().equals("func_220073_a"))
+                System.out.println("Found it");
+
             if (!CacheUtils.alreadyExistsOnInput(evm, vanillaAndExternalMappingCacheManager, targetChainCacheManager))
             {
                 LOGGER.warn("Could not find a vanilla mapping for: " + evm);
@@ -87,6 +92,12 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
             }
 
             GameVersionDMO gameVersion = targetChainCacheManager.getGameVersion(evm.getGameVersion());
+
+            if(gameVersion == null)
+            {
+                LOGGER.error("Could not find game version with name: " + evm.getGameVersion() + "! This is not supposed to be possible. And things might break!");
+                return;
+            }
 
             ReleaseDMO release = releasesToSave.containsKey(Tuples.of(mappingType.getId(), evm.getReleaseName())) ?
                     releasesToSave.get(Tuples.of(mappingType.getId(), evm.getReleaseName())) :
@@ -178,32 +189,40 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                     targetChainCacheManager
             ).getVersionedMappableId();
 
-            final MappingDMO mapping = new MappingDMO(
-                    UUID.randomUUID(),
-                    Constants.SYSTEM_ID,
-                    Timestamp.from(Instant.now()),
-                    vanillaVersionedMappableId,
-                    mappingType.getId(),
-                    evm.getInput(),
-                    evm.getOutput(),
-                    "",
-                    DistributionDMO.UNKNOWN
-            );
-            mappingsToSave.put(evm, mapping);
+            final MappingCacheEntry currentEntry = CacheUtils.getOutputMappingCacheEntry(evm, targetChainCacheManager);
+            final boolean isOldMapping = currentEntry != null && currentEntry.getInput().equals(evm.getInput()) && currentEntry.getOutput().equals(evm.getOutput()) && vanillaVersionedMappableId.equals(currentEntry.getVersionedMappableId());
+            final UUID mappingId = isOldMapping ? currentEntry.getMappingId() : UUID.randomUUID();
 
             final ReleaseComponentDMO releaseComponent = new ReleaseComponentDMO(
                     UUID.randomUUID(),
                     release.getId(),
-                    mapping.getId()
+                    mappingId
             );
             releaseComponentsToSave.put(evm, releaseComponent);
 
-            CacheUtils.registerNewEntry(
-                    targetMappable,
-                    versionedMappables.get(vanillaVersionedMappableId),
-                    mapping,
-                    targetChainCacheManager
-            );
+            if (!isOldMapping)
+            {
+                final MappingDMO mapping = new MappingDMO(
+                                mappingId,
+                                Constants.SYSTEM_ID,
+                                Timestamp.from(Instant.now()),
+                                vanillaVersionedMappableId,
+                                mappingType.getId(),
+                                evm.getInput(),
+                                evm.getOutput(),
+                                "",
+                                evm.getExternalDistribution().getDmo()
+                );
+                mappingsToSave.put(evm, mapping);
+
+                CacheUtils.registerNewEntry(
+                                targetMappable,
+                                versionedMappables.get(vanillaVersionedMappableId),
+                                mapping,
+                                releaseComponent,
+                                targetChainCacheManager
+                );
+            }
         });
 
         if (mappablesToSave.size() > 0)

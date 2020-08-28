@@ -9,6 +9,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.ExternalRelease;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVisibility;
 import org.modmappings.crispycomputingmachine.utils.MethodDesc;
+import org.modmappings.crispycomputingmachine.utils.ParameterRef;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
@@ -51,7 +52,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                             -1,
                             externalClass.isExternal(),
                             externalClass.getSuperClasses().stream().map(ExternalClass::getOutput).collect(Collectors.toList()),
-                            new HashSet<>())
+                            new HashSet<>(), Sets.newHashSet())
             );
 
             externalClass.getMethods().stream().map(externalMethod -> new ExternalVanillaMapping(
@@ -72,7 +73,8 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     -1,
                     externalMethod.isExternal(),
                     new ArrayList<>(),
-                    externalMethod.getOverrides()))
+                    externalMethod.getOverrides(), 
+                    Sets.newHashSet()))
                 .forEach(mappingsForVersion::add);
 
             externalClass.getMethods().stream().flatMap(externalMethod -> {
@@ -98,8 +100,8 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                                         initialIndex.get(),
                                         false,
                                         new ArrayList<>(),
-                                        Sets.newHashSet()
-                        );
+                                        Sets.newHashSet(),
+                                        externalMethod.getOverrides().stream().map(mr -> new ParameterRef(mr, initialIndex.get(), argType)).collect(Collectors.toSet()));
 
                         if (argType.equals("D") || argType.equals("J"))
                         {
@@ -130,7 +132,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                     -1,
                     false,
                     new ArrayList<>(),
-                    new HashSet<>()))
+                    new HashSet<>(), Sets.newHashSet()))
             .forEach(mappingsForVersion::add);
 
             return mappingsForVersion.stream();
