@@ -210,55 +210,58 @@ public abstract class AbstractMappingCacheManager
                                                .filter(mce -> mce.getMappableType() == MappableTypeDMO.CLASS)
                                                .collect(Collectors.groupingBy(MappingCacheEntry::getVersionedMappableId))
                                                .values().parallelStream()
-                                               .map(entries -> {
-                                                   if (entries.size() > 1)
-                                                       System.out.println("Found it");
+                                               .map(entries -> entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
+                                                   final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
+                                                   final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
 
-                                                   return entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
-                                                       final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
-                                                       final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
+                                                   return -1 * l.compareTo(r);
+                                               }).thenComparing((left, right) -> {
+                                                   final ReleaseDMO l = releaseIdCache.get(left.getReleaseId());
+                                                   final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
 
-                                                       return -1 * l.compareTo(r);
-                                                   }).thenComparing((left, right) -> {
-                                                       final ReleaseDMO l = releaseIdCache.get(left.getReleaseId());
-                                                       final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
-
-                                                       return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
-                                                   })).get();
-                                               })
+                                                   return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
+                                               })).get())
                                                .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.versionedMappableIdMethodCache = this.outputCache.values().parallelStream()
                                                 .filter(mce -> mce.getMappableType() == MappableTypeDMO.METHOD)
                                                 .collect(Collectors.groupingBy(MappingCacheEntry::getVersionedMappableId))
                                                 .values().parallelStream()
-                                                .map(entries -> {
-                                                    if (entries.size() > 1)
-                                                        System.out.println("Found it");
+                                                .map(entries -> entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
+                                                    final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
+                                                    final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
 
-                                                    return entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
-                                                        final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
-                                                        final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
+                                                    return -1 * l.compareTo(r);
+                                                }).thenComparing((left, right) -> {
+                                                    final ReleaseDMO l = releaseIdCache.get(left.getReleaseId());
+                                                    final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
 
-                                                        return -1 * l.compareTo(r);
-                                                    }).thenComparing((left, right) -> {
-                                                        final ReleaseDMO l = releaseIdCache.get(left.getReleaseId());
-                                                        final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
-
-                                                        return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
-                                                    })).get();
-                                                })
+                                                    return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
+                                                })).get())
                                                 .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.versionedMappableIdFieldCache = this.outputCache.values().parallelStream()
                                                .filter(mce -> mce.getMappableType() == MappableTypeDMO.FIELD)
                                                .collect(Collectors.groupingBy(MappingCacheEntry::getVersionedMappableId))
                                                .values().parallelStream()
-                                               .map(entries -> {
-                                                   if (entries.size() > 1)
-                                                       System.out.println("Found it");
+                                               .map(entries -> entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
+                                                   final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
+                                                   final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
 
-                                                   return entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
+                                                   return -1 * l.compareTo(r);
+                                               }).thenComparing((left, right) -> {
+                                                   final ReleaseDMO l = releaseIdCache.get(left.getReleaseId());
+                                                   final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
+
+                                                   return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
+                                               })).get())
+                                               .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
+
+        this.versionedMappableIdParameterCache = this.outputCache.values().parallelStream()
+                                                   .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
+                                                   .collect(Collectors.groupingBy(MappingCacheEntry::getVersionedMappableId))
+                                                   .values().parallelStream()
+                                                   .map(entries -> entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
                                                        final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
                                                        final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
 
@@ -268,30 +271,7 @@ public abstract class AbstractMappingCacheManager
                                                        final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
 
                                                        return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
-                                                   })).get();
-                                               })
-                                               .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
-
-        this.versionedMappableIdParameterCache = this.outputCache.values().parallelStream()
-                                                   .filter(mce -> mce.getMappableType() == MappableTypeDMO.PARAMETER)
-                                                   .collect(Collectors.groupingBy(MappingCacheEntry::getVersionedMappableId))
-                                                   .values().parallelStream()
-                                                   .map(entries -> {
-                                                       if (entries.size() > 1)
-                                                           System.out.println("Found it");
-
-                                                       return entries.stream().min(((Comparator<MappingCacheEntry>) (left, right) -> {
-                                                           final MinecraftVersion l = MinecraftVersion.from(left.getGameVersionName());
-                                                           final MinecraftVersion r = MinecraftVersion.from(right.getGameVersionName());
-
-                                                           return -1 * l.compareTo(r);
-                                                       }).thenComparing((left, right) -> {
-                                                           final ReleaseDMO l = releaseIdCache.get(left.getReleaseId());
-                                                           final ReleaseDMO r = releaseIdCache.get(right.getReleaseId());
-
-                                                           return -1 * l.getCreatedOn().compareTo(r.getCreatedOn());
-                                                       })).get();
-                                                   })
+                                                   })).get())
                                                    .collect(Collectors.toMap(MappingCacheEntry::getVersionedMappableId, Function.identity()));
 
         this.classMembers = this.outputCache.values().parallelStream()
@@ -312,15 +292,13 @@ public abstract class AbstractMappingCacheManager
         final String mappingColumnName = isInput ? "input" : "output";
 
         return databaseClient.execute(String.format(
-          "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index from mapping m\n"
-            +
+          "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index, rc.release_id as release_id from mapping m\n" +
             "                        JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
             "                        JOIN game_version gv on vm.game_version_id = gv.id\n" +
             "                        JOIN mappable mp on vm.mappable_id = mp.id\n" +
-            "                        LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id and pcm.mapping_type_id = m.mapping_type_id\n"
-            +
-            "                        LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id and pmm.mapping_type_id = m.mapping_type_id\n"
-            +
+            "                        JOIN release_component rc on rc.mapping_id = m.id\n" +
+            "                        LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id and pcm.mapping_type_id = m.mapping_type_id\n" +
+            "                        LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id and pmm.mapping_type_id = m.mapping_type_id\n" +
             "                        LEFT OUTER JOIN versioned_mappable pmvm ON vm.parent_method_id = pmvm.id \n" +
             "                        WHERE (%s)\n" +
             "                        order by m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor, gv.created_on desc, m.created_on desc;",

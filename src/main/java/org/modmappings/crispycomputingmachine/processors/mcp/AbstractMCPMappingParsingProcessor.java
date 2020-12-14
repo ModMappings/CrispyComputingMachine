@@ -1,7 +1,9 @@
 package org.modmappings.crispycomputingmachine.processors.mcp;
 
+import com.google.common.collect.Maps;
 import org.jetbrains.annotations.NotNull;
 import org.modmappings.crispycomputingmachine.cache.MCPConfigMappingCacheManager;
+import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalDistribution;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMappableType;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
@@ -9,19 +11,20 @@ import org.modmappings.crispycomputingmachine.processors.base.parsing.simple.*;
 import org.modmappings.crispycomputingmachine.utils.Constants;
 import org.modmappings.crispycomputingmachine.utils.MethodRef;
 
-import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleMappingParsingProcessor
 {
-    private final MCPConfigMappingCacheManager mcpConfigMappingCacheManager;
+
+    private static Collection<MappingCacheEntry>   mcpConfigClasses     = Collections.emptyList();
+    private static Collection<MappingCacheEntry>   mcpConfigMethods     = Collections.emptyList();
+    private static Collection<MappingCacheEntry>   mcpConfigFields      = Collections.emptyList();
+    private static Collection<MappingCacheEntry>   mcpConfigParameters  = Collections.emptyList();
+    private static Map<MethodRef, ExternalMapping> parsedMethodMappings = Maps.newHashMap();
 
     protected AbstractMCPMappingParsingProcessor(
       final String MCP_WORKING_DIR,
@@ -32,29 +35,31 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
           Paths.get(s, MCP_WORKING_DIR, "fields.csv"),
           Paths.get(s, MCP_WORKING_DIR, "params.csv")
           ),
+          releaseName -> mcpConfigClasses = mcpConfigMappingCacheManager.getAllClasses(),
           ISimpleClassParser.NOOP,
-          (IClassesPostProcessor) (releaseName, classes) -> {
+          (releaseName, classes) -> {
               final String gameVersionName = releaseName.split("-")[1];
 
-              mcpConfigMappingCacheManager.getAllClasses()
+              mcpConfigClasses
                 .parallelStream()
                 .filter(entry -> entry.getGameVersionName().equals(gameVersionName)).map(entry -> new ExternalMapping(
-                  entry.getOutput(),
-                  entry.getOutput(),
-                  ExternalMappableType.CLASS,
-                  releaseName,
-                  releaseName,
-                  entry.getParentClassOutput(),
-                  null,
-                  null,
-                  null,
-                  null,
-                  null,
-                  null,
-                  entry.isStatic()
-                ))
-              .forEach(classes::add);
+                entry.getOutput(),
+                entry.getOutput(),
+                ExternalMappableType.CLASS,
+                gameVersionName,
+                releaseName,
+                entry.getParentClassOutput(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                entry.isStatic()
+              ))
+                .forEach(classes::add);
           },
+          (releaseName, classes) -> mcpConfigMethods = mcpConfigMappingCacheManager.getAllMethods(),
           new ISimpleMethodParser()
           {
               @Override
@@ -80,7 +85,8 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                   final String inputMapping = lineComponents[0];
                   final String outputMapping = lineComponents[1];
 
-                  return mcpConfigMappingCacheManager.getAllMethods().stream()
+                  return mcpConfigMethods.stream()
+                           .filter(entry -> entry.getGameVersionName().equals(gameVersion))
                            .filter(method -> method.getOutput().equals(inputMapping))
                            .map(method -> {
                                final ExternalMapping mapping = new ExternalMapping(
@@ -107,7 +113,57 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                            .collect(Collectors.toList());
               }
           },
-          IMethodsPostProcessor.NOOP,
+          (releaseName, classes, methods) -> {
+              final String[] releaseNameComponents = releaseName.split("-");
+              final String release = releaseNameComponents[0];
+              final String gameVersion = releaseNameComponents[1];
+
+              final Set<String> knownMethods = methods.parallelStream().map(ExternalMapping::getInput).collect(Collectors.toSet());
+
+              mcpConfigMethods.parallelStream()
+                .filter(entry -> entry.getGameVersionName().equals(gameVersion))
+                .filter(method -> method.getInput().equals("<init>"))
+                .forEach(constructorMethod -> {
+                    methods.add(new ExternalMapping(
+                      constructorMethod.getOutput(),
+                      "<init>",
+                      ExternalMappableType.METHOD,
+                      gameVersion,
+                      release,
+                      constructorMethod.getParentClassOutput(),
+                      "",
+                      "",
+                      "",
+                      constructorMethod.getDescriptor(),
+                      "",
+                      -1,
+                      constructorMethod.isStatic()
+                    ));
+                });
+
+              mcpConfigMethods.parallelStream()
+                .filter(entry -> entry.getGameVersionName().equals(gameVersion))
+                .filter(method -> !method.getInput().equals("<init>"))
+                .filter(method -> !knownMethods.contains(method.getOutput()))
+                .forEach(noneMappedMethod -> {
+                    methods.add(new ExternalMapping(
+                      noneMappedMethod.getOutput(),
+                      noneMappedMethod.getOutput(),
+                      ExternalMappableType.METHOD,
+                      gameVersion,
+                      release,
+                      noneMappedMethod.getParentClassOutput(),
+                      "",
+                      "",
+                      "",
+                      noneMappedMethod.getDescriptor(),
+                      "",
+                      -1,
+                      noneMappedMethod.isStatic()
+                    ));
+                });
+          },
+          (releaseName, classes) -> mcpConfigFields = mcpConfigMappingCacheManager.getAllFields(),
           new ISimpleFieldParser()
           {
               @Override
@@ -121,7 +177,9 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
               public Collection<ExternalMapping> parse(final @NotNull Set<ExternalMapping> classes, final @NotNull String line, final String releaseName)
               {
                   if (line.contentEquals("searge,name,side,desc"))
+                  {
                       return List.of();
+                  }
 
                   final String[] releaseNameComponents = releaseName.split("-");
                   final String release = releaseNameComponents[0];
@@ -132,35 +190,74 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                   final String inputMapping = lineComponents[0];
                   final String outputMapping = lineComponents[1];
 
-                  return mcpConfigMappingCacheManager.getAllFields()
-                    .stream()
-                    .filter(field -> field.getOutput().equals(inputMapping))
-                    .map(field -> {
-                        final ExternalMapping mapping = new ExternalMapping(
-                          inputMapping,
-                          outputMapping,
-                          ExternalMappableType.FIELD,
-                          gameVersion,
-                          release,
-                          field.getParentClassOutput(),
-                          "",
-                          "",
-                          field.getType(),
-                          "",
-                          "",
-                          -1,
-                          field.isStatic()
-                        );
+                  return mcpConfigFields
+                           .parallelStream()
+                           .filter(entry -> entry.getGameVersionName().equals(gameVersion))
+                           .filter(field -> field.getOutput().equals(inputMapping))
+                           .map(field -> {
+                               final ExternalMapping mapping = new ExternalMapping(
+                                 inputMapping,
+                                 outputMapping,
+                                 ExternalMappableType.FIELD,
+                                 gameVersion,
+                                 release,
+                                 field.getParentClassOutput(),
+                                 "",
+                                 "",
+                                 field.getType(),
+                                 "",
+                                 "",
+                                 -1,
+                                 field.isStatic()
+                               );
 
-                        mapping.setDocumentation(lineComponents.length == 4 ? lineComponents[3] : "");
-                        mapping.setExternalDistribution(ExternalDistribution.values()[Integer.parseInt(lineComponents[2])]);
+                               mapping.setDocumentation(lineComponents.length == 4 ? lineComponents[3] : "");
+                               mapping.setExternalDistribution(ExternalDistribution.values()[Integer.parseInt(lineComponents[2])]);
 
-                        return mapping;
-                    })
-                    .collect(Collectors.toList());
+                               return mapping;
+                           })
+                           .collect(Collectors.toList());
               }
           },
-          IFieldsPostProcessor.NOOP,
+          (releaseName, classes, fields) -> {
+              final String[] releaseNameComponents = releaseName.split("-");
+              final String release = releaseNameComponents[0];
+              final String gameVersion = releaseNameComponents[1];
+
+              final Set<String> knownFields = fields.parallelStream().map(ExternalMapping::getInput).collect(Collectors.toSet());
+
+              mcpConfigFields.parallelStream()
+                .filter(entry -> entry.getGameVersionName().equals(gameVersion))
+                .filter(method -> !knownFields.contains(method.getOutput()))
+                .forEach(noneMappedField -> {
+                    fields.add(new ExternalMapping(
+                      noneMappedField.getOutput(),
+                      noneMappedField.getOutput(),
+                      ExternalMappableType.FIELD,
+                      gameVersion,
+                      release,
+                      noneMappedField.getParentClassOutput(),
+                      "",
+                      "",
+                      noneMappedField.getType(),
+                      "",
+                      "",
+                      -1,
+                      noneMappedField.isStatic()
+                    ));
+                });
+          },
+          (releaseName, classes, methods) -> {
+              mcpConfigParameters = mcpConfigMappingCacheManager.getAllParameters();
+              parsedMethodMappings =
+                methods.parallelStream()
+                  .collect(Collectors.toMap(externalMapping -> new MethodRef(
+                      externalMapping.getParentClassMapping(),
+                      externalMapping.getInput(),
+                      externalMapping.getDescriptor()
+                    ),
+                    Function.identity()));
+          },
           new ISimpleParameterParser()
           {
               @Override
@@ -174,16 +271,9 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
               public Collection<ExternalMapping> parse(final @NotNull Set<ExternalMapping> methods, final @NotNull String line, final String releaseName)
               {
                   if (line.contentEquals("param,name,side"))
+                  {
                       return List.of();
-
-                  final Map<MethodRef, ExternalMapping> existingMethodMappings =
-                    methods.parallelStream()
-                    .collect(Collectors.toMap(externalMapping -> new MethodRef(
-                      externalMapping.getParentClassMapping(),
-                      externalMapping.getOutput(),
-                      externalMapping.getDescriptor()
-                    ),
-                      Function.identity()));
+                  }
 
                   final String[] releaseNameComponents = releaseName.split("-");
                   final String release = releaseNameComponents[0];
@@ -194,43 +284,78 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                   final String inputMapping = lineComponents[0];
                   final String outputMapping = lineComponents[1];
 
-                  return mcpConfigMappingCacheManager.getAllParameters().parallelStream()
-                    .filter(parameter -> parameter.getOutput().equals(inputMapping))
-                    .map(parameter -> {
-                        final MethodRef ownerRef = new MethodRef(
-                          parameter.getParentClassOutput(),
-                          parameter.getParentMethodOutput(),
-                          parameter.getParentMethodDescriptor()
-                        );
+                  return mcpConfigParameters.parallelStream()
+                           .filter(entry -> entry.getGameVersionName().equals(gameVersion))
+                           .filter(parameter -> parameter.getOutput().equals(inputMapping))
+                           .map(parameter -> {
+                               final MethodRef ownerRef = new MethodRef(
+                                 parameter.getParentClassOutput(),
+                                 parameter.getParentMethodOutput(),
+                                 parameter.getParentMethodDescriptor()
+                               );
 
-                        if (existingMethodMappings.get(ownerRef) == null)
-                            System.out.println("HELLO");
+                               if (parsedMethodMappings.get(ownerRef) == null)
+                               {
+                                   System.out.println("Hello");
+                               }
 
-                        final ExternalMapping mapping = new ExternalMapping(
-                          inputMapping,
-                          outputMapping,
-                          ExternalMappableType.PARAMETER,
-                          gameVersion,
-                          release,
-                          parameter.getParentClassOutput(),
-                          existingMethodMappings.get(ownerRef).getOutput(),
-                          parameter.getParentMethodDescriptor(),
-                          parameter.getType(),
-                          "",
-                          "",
-                          parameter.getIndex(),
-                          false
-                        );
+                               final ExternalMapping mapping = new ExternalMapping(
+                                 inputMapping,
+                                 outputMapping,
+                                 ExternalMappableType.PARAMETER,
+                                 gameVersion,
+                                 release,
+                                 parameter.getParentClassOutput(),
+                                 parsedMethodMappings.get(ownerRef) == null ? parameter.getParentMethodOutput() : parsedMethodMappings.get(ownerRef).getOutput(),
+                                 parameter.getParentMethodDescriptor(),
+                                 parameter.getType(),
+                                 "",
+                                 "",
+                                 parameter.getIndex(),
+                                 false
+                               );
 
-                        mapping.setExternalDistribution(ExternalDistribution.values()[Integer.parseInt(lineComponents[2])]);
+                               mapping.setExternalDistribution(ExternalDistribution.values()[Integer.parseInt(lineComponents[2])]);
 
-                        return mapping;
-                    })
-                    .collect(Collectors.toList());
+                               return mapping;
+                           })
+                           .collect(Collectors.toList());
               }
           },
-          IParametersPostProcessor.NOOP,
+          (releaseName, classes, methods, parameters) -> {
+              final String[] releaseNameComponents = releaseName.split("-");
+              final String release = releaseNameComponents[0];
+              final String gameVersion = releaseNameComponents[1];
+
+              final Set<String> knownParameters = parameters.parallelStream().map(ExternalMapping::getInput).collect(Collectors.toSet());
+
+              mcpConfigParameters.parallelStream()
+                .filter(entry -> entry.getGameVersionName().equals(gameVersion))
+                .filter(method -> !knownParameters.contains(method.getOutput()))
+                .forEach(noneMappedParameter -> {
+                    final MethodRef ownerRef = new MethodRef(
+                      noneMappedParameter.getParentClassOutput(),
+                      noneMappedParameter.getParentMethodOutput(),
+                      noneMappedParameter.getParentMethodDescriptor()
+                    );
+
+                    parameters.add(new ExternalMapping(
+                      noneMappedParameter.getOutput(),
+                      noneMappedParameter.getOutput(),
+                      ExternalMappableType.PARAMETER,
+                      gameVersion,
+                      release,
+                      noneMappedParameter.getParentClassOutput(),
+                      parsedMethodMappings.get(ownerRef) == null ? noneMappedParameter.getParentMethodOutput() : parsedMethodMappings.get(ownerRef).getOutput(),
+                      noneMappedParameter.getParentMethodDescriptor(),
+                      noneMappedParameter.getType(),
+                      "",
+                      "",
+                      noneMappedParameter.getIndex(),
+                      false
+                    ));
+                });
+          },
           Constants.MCP_MAPPING_NAME);
-        this.mcpConfigMappingCacheManager = mcpConfigMappingCacheManager;
     }
 }

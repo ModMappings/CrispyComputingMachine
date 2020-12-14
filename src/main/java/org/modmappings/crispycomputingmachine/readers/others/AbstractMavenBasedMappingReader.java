@@ -22,6 +22,8 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -33,9 +35,13 @@ public abstract class AbstractMavenBasedMappingReader extends AbstractItemStream
     private static final Logger LOGGER = LogManager.getLogger();
 
     protected final CompositeItemProcessor<String, List<ExternalMapping>> processor;
+    private final Function<List<String>, List<String>> versionsAdapter;
 
     @Value("${importer.directories.working:file:working}")
     Resource workingDirectory;
+
+    @Value("${importer.additional_artifact_versions:}")
+    String[] versionsToImport;
 
     private String currentRelease = null;
     private PeekingIterator<String> availableReleasesIterator = null;
@@ -45,9 +51,14 @@ public abstract class AbstractMavenBasedMappingReader extends AbstractItemStream
     private final String metadataFilePath;
 
     public AbstractMavenBasedMappingReader(final CompositeItemProcessor<String, List<ExternalMapping>> processor, final String mappingTypeName, final String metadataFilePath) {
+        this(processor, mappingTypeName, metadataFilePath, Function.identity());
+    }
+
+    public AbstractMavenBasedMappingReader(final CompositeItemProcessor<String, List<ExternalMapping>> processor, final String mappingTypeName, final String metadataFilePath, final Function<List<String>, List<String>> versionsAdapter) {
         this.processor = processor;
         this.mappingTypeName = mappingTypeName;
         this.metadataFilePath = metadataFilePath;
+        this.versionsAdapter = versionsAdapter;
     }
 
     @Override
@@ -70,11 +81,12 @@ public abstract class AbstractMavenBasedMappingReader extends AbstractItemStream
             String expression = "/metadata/versioning/versions/version";
             final NodeList versionLists = (NodeList) xPath.compile(expression).evaluate(xmlDocument, XPathConstants.NODESET);
             final List<String> versions = IntStream.range(0, versionLists.getLength())
-                    .mapToObj(versionLists::item)
-                    .map(Node::getTextContent)
-                    .collect(Collectors.toList());
+                                            .mapToObj(versionLists::item)
+                                            .map(Node::getTextContent).collect(Collectors.toList());
 
-            availableReleasesIterator = Iterators.peekingIterator(versions.iterator());
+            versions.addAll(Arrays.asList(versionsToImport));
+
+            availableReleasesIterator = Iterators.peekingIterator(this.versionsAdapter.apply(versions).iterator());
         } catch (Exception e) {
             throw new IllegalStateException(String.format("Failed to load maven metadata for %s mappings.", mappingTypeName), e);
         }
@@ -104,7 +116,7 @@ public abstract class AbstractMavenBasedMappingReader extends AbstractItemStream
             }
         }
 
-        if (this.mappingIterator != null)
+        if (this.mappingIterator != null && this.mappingIterator.hasNext())
         {
             return iteratorInvoker.apply(this.mappingIterator);
         }

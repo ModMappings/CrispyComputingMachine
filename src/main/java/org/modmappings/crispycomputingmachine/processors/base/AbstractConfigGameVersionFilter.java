@@ -12,7 +12,7 @@ public abstract class AbstractConfigGameVersionFilter implements ItemProcessor<S
 
     private final Function<String, String> gameVersionNameExtractor;
 
-    @Value("${importer.versions:}")
+    @Value("${importer.game_versions:}")
     String[] versionsToImport;
 
     public AbstractConfigGameVersionFilter(final Function<String, String> gameVersionNameExtractor) {

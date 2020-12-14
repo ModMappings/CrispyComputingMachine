@@ -52,6 +52,8 @@ class R2DBCConfiguration {
     }
 
     @Bean
+    @Primary
+    @Order(Integer.MIN_VALUE)
     public ConnectionFactoryOptionsBuilderCustomizer customEncoderCustomizer()
     {
         return builder -> builder.option(PostgresqlConnectionFactoryProvider.AUTODETECT_EXTENSIONS, true);

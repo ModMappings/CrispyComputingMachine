@@ -28,22 +28,30 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
     private final Function<String, List<Path>> pathsExtractor;
     private final ISimpleClassParser           classParser;
     private final IClassesPostProcessor        classesPostProcessor;
+    private final IClassesPreProcessor         classesPreProcessor;
     private final ISimpleMethodParser          methodParser;
     private final IMethodsPostProcessor        methodsPostProcessor;
+    private final IMethodsPreProcessor         methodsPreProcessor;
     private final ISimpleFieldParser           fieldParser;
     private final IFieldsPostProcessor         fieldsPostProcessor;
+    private final IFieldsPreProcessor          fieldsPreProcessor;
     private final ISimpleParameterParser       parameterParser;
     private final IParametersPostProcessor     parametersPostProcessor;
+    private final IParametersPreProcessor      parametersPreProcessor;
     private final String                       mappingTypeName;
 
     protected AbstractSimpleMappingParsingProcessor(
       final Function<String, List<Path>> pathsExtractor,
+      final IClassesPreProcessor classesPreProcessor,
       final ISimpleClassParser classParser,
       final IClassesPostProcessor classesPostProcessor,
+      final IMethodsPreProcessor methodsPreProcessor,
       final ISimpleMethodParser methodParser,
       final IMethodsPostProcessor methodsPostProcessor,
+      final IFieldsPreProcessor fieldsPreProcessor,
       final ISimpleFieldParser fieldParser,
       final IFieldsPostProcessor fieldsPostProcessor,
+      final IParametersPreProcessor parametersPreProcessor,
       final ISimpleParameterParser parameterParser,
       final IParametersPostProcessor parametersPostProcessor,
       final String mappingTypeName)
@@ -51,12 +59,16 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
         this.pathsExtractor = pathsExtractor;
         this.classParser = classParser;
         this.classesPostProcessor = classesPostProcessor;
+        this.classesPreProcessor = classesPreProcessor;
         this.methodParser = methodParser;
         this.methodsPostProcessor = methodsPostProcessor;
+        this.methodsPreProcessor = methodsPreProcessor;
         this.fieldParser = fieldParser;
         this.fieldsPostProcessor = fieldsPostProcessor;
+        this.fieldsPreProcessor = fieldsPreProcessor;
         this.parameterParser = parameterParser;
         this.parametersPostProcessor = parametersPostProcessor;
+        this.parametersPreProcessor = parametersPreProcessor;
         this.mappingTypeName = mappingTypeName;
     }
 
@@ -101,6 +113,8 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
             }
         });
 
+        this.classesPreProcessor.apply(item);
+
         pathToLinesMap.keySet().parallelStream().filter(this.classParser::acceptsFile).forEach(path -> {
             final List<String> lines = pathToLinesMap.get(path);
             final Set<ExternalMapping> fileClasses = lines.parallelStream()
@@ -113,6 +127,8 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
 
         this.classesPostProcessor.apply(item, classes);
 
+        this.methodsPreProcessor.apply(item, classes);
+
         pathToLinesMap.keySet().parallelStream().filter(this.methodParser::acceptsFile).forEach(path -> {
             final List<String> lines = pathToLinesMap.get(path);
             final Set<ExternalMapping> fileMethods = lines.parallelStream()
@@ -123,6 +139,8 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
         });
 
         this.methodsPostProcessor.apply(item, classes, methods);
+
+        this.fieldsPreProcessor.apply(item, classes);
 
         pathToLinesMap.keySet().parallelStream().filter(this.fieldParser::acceptsFile).forEach(path -> {
             final List<String> lines = pathToLinesMap.get(path);
@@ -135,6 +153,8 @@ public abstract class AbstractSimpleMappingParsingProcessor implements ItemProce
         });
 
         this.fieldsPostProcessor.apply(item, classes, fields);
+
+        this.parametersPreProcessor.apply(item, classes, methods);
 
         pathToLinesMap.keySet().parallelStream().filter(this.parameterParser::acceptsFile).forEach(path -> {
             final List<String> lines = pathToLinesMap.get(path);

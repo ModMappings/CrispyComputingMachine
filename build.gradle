@@ -38,8 +38,8 @@ sourceSets {
 dependencies {
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
 
-    implementation 'org.modmappings.mmms:repository:0.1.0-313.g1f31c5c'
-    implementation 'org.modmappings.mmms:er2dbc:0.1.0-313.g1f31c5c'
+    implementation 'org.modmappings.mmms:repository:0.1.0-380.g3f962b3-dirty'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-380.g3f962b3-dirty'
 
     implementation 'com.google.guava:guava:28.2-jre'
 
@@ -54,7 +54,6 @@ dependencies {
     implementation 'net.minecraftforge:srgutils:0.2.12'
 
     implementation 'org.springframework.boot:spring-boot-starter-batch'
-    implementation 'org.springframework.boot:spring-boot-starter-quartz'
     implementation 'org.springframework.cloud:spring-cloud-starter-task'
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot.experimental:spring-boot-starter-data-r2dbc'
