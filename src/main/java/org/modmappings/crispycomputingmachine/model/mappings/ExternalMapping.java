@@ -1,5 +1,7 @@
 package org.modmappings.crispycomputingmachine.model.mappings;
 
+import java.util.Objects;
+
 public class ExternalMapping {
     private final String parentMethodMapping;
     private final String parentMethodDescriptor;
@@ -16,6 +18,7 @@ public class ExternalMapping {
     private boolean isStatic;
     private String documentation = "";
     private ExternalDistribution externalDistribution = ExternalDistribution.UNKNOWN;
+    private boolean isLocked = false;
 
     public ExternalMapping(final String input,
                            final String output,
@@ -119,6 +122,16 @@ public class ExternalMapping {
         this.externalDistribution = externalDistribution;
     }
 
+    public boolean isLocked()
+    {
+        return isLocked;
+    }
+
+    public void setLocked(final boolean locked)
+    {
+        isLocked = locked;
+    }
+
     @Override
     public boolean equals(final Object o)
     {
@@ -126,91 +139,39 @@ public class ExternalMapping {
         {
             return true;
         }
-        if (o == null || getClass() != o.getClass())
+        if (!(o instanceof ExternalMapping))
         {
             return false;
         }
-
-        final ExternalMapping mapping = (ExternalMapping) o;
-
-        if (isStatic() != mapping.isStatic())
-        {
-            return false;
-        }
-        if (getParentMethodMapping() != null ? !getParentMethodMapping().equals(mapping.getParentMethodMapping()) : mapping.getParentMethodMapping() != null)
-        {
-            return false;
-        }
-        if (getParentMethodDescriptor() != null ? !getParentMethodDescriptor().equals(mapping.getParentMethodDescriptor()) : mapping.getParentMethodDescriptor() != null)
-        {
-            return false;
-        }
-        if (getInput() != null ? !getInput().equals(mapping.getInput()) : mapping.getInput() != null)
-        {
-            return false;
-        }
-        if (getOutput() != null ? !getOutput().equals(mapping.getOutput()) : mapping.getOutput() != null)
-        {
-            return false;
-        }
-        if (getMappableType() != mapping.getMappableType())
-        {
-            return false;
-        }
-        if (getGameVersion() != null ? !getGameVersion().equals(mapping.getGameVersion()) : mapping.getGameVersion() != null)
-        {
-            return false;
-        }
-        if (getReleaseName() != null ? !getReleaseName().equals(mapping.getReleaseName()) : mapping.getReleaseName() != null)
-        {
-            return false;
-        }
-        if (getParentClassMapping() != null ? !getParentClassMapping().equals(mapping.getParentClassMapping()) : mapping.getParentClassMapping() != null)
-        {
-            return false;
-        }
-        if (getType() != null ? !getType().equals(mapping.getType()) : mapping.getType() != null)
-        {
-            return false;
-        }
-        if (getDescriptor() != null ? !getDescriptor().equals(mapping.getDescriptor()) : mapping.getDescriptor() != null)
-        {
-            return false;
-        }
-        if (getSignature() != null ? !getSignature().equals(mapping.getSignature()) : mapping.getSignature() != null)
-        {
-            return false;
-        }
-        if (getIndex() != null ? !getIndex().equals(mapping.getIndex()) : mapping.getIndex() != null)
-        {
-            return false;
-        }
-        if (getDocumentation() != null ? !getDocumentation().equals(mapping.getDocumentation()) : mapping.getDocumentation() != null)
-        {
-            return false;
-        }
-        return externalDistribution == mapping.externalDistribution;
+        final ExternalMapping that = (ExternalMapping) o;
+        return isStatic() == that.isStatic() && isLocked() == that.isLocked() && Objects.equals(getParentMethodMapping(), that.getParentMethodMapping())
+                 && Objects.equals(getParentMethodDescriptor(), that.getParentMethodDescriptor()) && Objects.equals(getInput(), that.getInput())
+                 && Objects.equals(getOutput(), that.getOutput()) && getMappableType() == that.getMappableType() && Objects.equals(getGameVersion(),
+          that.getGameVersion()) && Objects.equals(getReleaseName(), that.getReleaseName()) && Objects.equals(getParentClassMapping(), that.getParentClassMapping())
+                 && Objects.equals(getType(), that.getType()) && Objects.equals(getDescriptor(), that.getDescriptor()) && Objects.equals(getSignature(),
+          that.getSignature()) && Objects.equals(getIndex(), that.getIndex()) && Objects.equals(getDocumentation(), that.getDocumentation())
+                 && getExternalDistribution() == that.getExternalDistribution();
     }
 
     @Override
     public int hashCode()
     {
-        int result = getParentMethodMapping() != null ? getParentMethodMapping().hashCode() : 0;
-        result = 31 * result + (getParentMethodDescriptor() != null ? getParentMethodDescriptor().hashCode() : 0);
-        result = 31 * result + (getInput() != null ? getInput().hashCode() : 0);
-        result = 31 * result + (getOutput() != null ? getOutput().hashCode() : 0);
-        result = 31 * result + (getMappableType() != null ? getMappableType().hashCode() : 0);
-        result = 31 * result + (getGameVersion() != null ? getGameVersion().hashCode() : 0);
-        result = 31 * result + (getReleaseName() != null ? getReleaseName().hashCode() : 0);
-        result = 31 * result + (getParentClassMapping() != null ? getParentClassMapping().hashCode() : 0);
-        result = 31 * result + (getType() != null ? getType().hashCode() : 0);
-        result = 31 * result + (getDescriptor() != null ? getDescriptor().hashCode() : 0);
-        result = 31 * result + (getSignature() != null ? getSignature().hashCode() : 0);
-        result = 31 * result + (getIndex() != null ? getIndex().hashCode() : 0);
-        result = 31 * result + (isStatic() ? 1 : 0);
-        result = 31 * result + (getDocumentation() != null ? getDocumentation().hashCode() : 0);
-        result = 31 * result + (externalDistribution != null ? externalDistribution.hashCode() : 0);
-        return result;
+        return Objects.hash(getParentMethodMapping(),
+          getParentMethodDescriptor(),
+          getInput(),
+          getOutput(),
+          getMappableType(),
+          getGameVersion(),
+          getReleaseName(),
+          getParentClassMapping(),
+          getType(),
+          getDescriptor(),
+          getSignature(),
+          getIndex(),
+          isStatic(),
+          getDocumentation(),
+          getExternalDistribution(),
+          isLocked());
     }
 
     @Override

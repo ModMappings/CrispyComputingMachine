@@ -21,6 +21,7 @@ public class MappingCacheEntry {
     private String type;
     private String descriptor;
     private final String originalDescriptor;
+    private final String documentation;
     private int index;
     private boolean isStatic;
 
@@ -39,6 +40,7 @@ public class MappingCacheEntry {
       final UUID releaseId,
       final String type,
       final String descriptor,
+      final String documentation,
       final int index,
       final boolean isStatic) {
         this.input = input;
@@ -56,6 +58,7 @@ public class MappingCacheEntry {
         this.type = type;
         this.descriptor = descriptor;
         this.originalDescriptor = descriptor;
+        this.documentation = documentation;
         this.index = index;
         this.isStatic = isStatic;
     }
@@ -133,6 +136,11 @@ public class MappingCacheEntry {
         return originalDescriptor;
     }
 
+    public String getDocumentation()
+    {
+        return documentation;
+    }
+
     public int getIndex()
     {
         return index;
@@ -157,9 +165,11 @@ public class MappingCacheEntry {
                  ", parentMethodDescriptor='" + parentMethodDescriptor + '\'' +
                  ", gameVersionId=" + gameVersionId +
                  ", gameVersionName='" + gameVersionName + '\'' +
+                 ", releaseId=" + releaseId +
                  ", type='" + type + '\'' +
                  ", descriptor='" + descriptor + '\'' +
                  ", originalDescriptor='" + originalDescriptor + '\'' +
+                 ", documentation='" + documentation + '\'' +
                  ", index=" + index +
                  ", isStatic=" + isStatic +
                  '}';

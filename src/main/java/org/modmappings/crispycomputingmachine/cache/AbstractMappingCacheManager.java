@@ -1,7 +1,9 @@
 package org.modmappings.crispycomputingmachine.cache;
 
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
 import net.minecraftforge.srgutils.MinecraftVersion;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -52,7 +54,8 @@ public abstract class AbstractMappingCacheManager
     private Map<UUID, ReleaseDMO>                 releaseIdCache                    = new HashMap<>();
     private Map<Tuple2<UUID, String>, ReleaseDMO> releaseNameCache                  = new HashMap<>();
     private Map<String, Map<UUID, List<UUID>>>    superTypeCache                    = new HashMap<>();
-    private Map<String, Map<UUID, List<UUID>>>    overridesMethodsCache             = new HashMap<>();
+    private Map<String, Map<UUID, List<UUID>>> overridesMethodsCache    = new HashMap<>();
+    private Table<UUID, UUID, Set<UUID>>             lockedVersionedMappables = HashBasedTable.create();
 
     protected AbstractMappingCacheManager(final DatabaseClient databaseClient)
     {
@@ -292,7 +295,7 @@ public abstract class AbstractMappingCacheManager
         final String mappingColumnName = isInput ? "input" : "output";
 
         return databaseClient.execute(String.format(
-          "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index, rc.release_id as release_id from mapping m\n" +
+          "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, m.documentation as documentation, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index, rc.release_id as release_id from mapping m\n" +
             "                        JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
             "                        JOIN game_version gv on vm.game_version_id = gv.id\n" +
             "                        JOIN mappable mp on vm.mappable_id = mp.id\n" +
@@ -579,7 +582,7 @@ public abstract class AbstractMappingCacheManager
           versionedMappable.getGameVersionId(),
           gameVersionIdCache.get(versionedMappable.getGameVersionId()).getName(),
           releaseComponentDMO.getReleaseId(),
-          null, null, -1, versionedMappable.isStatic());
+          null, null, mapping.getDocumentation(), -1, versionedMappable.isStatic());
 
         final MappingKey inputMappingKey = new MappingKey(
           newEntry.getInput(),
@@ -625,7 +628,7 @@ public abstract class AbstractMappingCacheManager
           getGameVersion(versionedMappable.getGameVersionId()).getName(),
           releaseComponentDMO.getReleaseId(),
           null,
-          versionedMappable.getDescriptor(), -1, versionedMappable.isStatic());
+          versionedMappable.getDescriptor(), mapping.getDocumentation(), -1, versionedMappable.isStatic());
 
         newEntry.setDescriptor(this.remapDescriptor(newEntry.getDescriptor()));
 
@@ -672,7 +675,7 @@ public abstract class AbstractMappingCacheManager
           versionedMappable.getGameVersionId(),
           getGameVersion(versionedMappable.getGameVersionId()).getName(),
           releaseComponentDMO.getReleaseId(),
-          versionedMappable.getType(), null, -1, versionedMappable.isStatic());
+          versionedMappable.getType(), null, mapping.getDocumentation(), -1, versionedMappable.isStatic());
 
         newEntry.setType(this.remapType(newEntry.getType()));
 
@@ -719,7 +722,7 @@ public abstract class AbstractMappingCacheManager
           versionedMappable.getGameVersionId(),
           getGameVersion(versionedMappable.getGameVersionId()).getName(),
           releaseComponentDMO.getReleaseId(),
-          versionedMappable.getType(), null, versionedMappable.getIndex(), versionedMappable.isStatic());
+          versionedMappable.getType(), null, mapping.getDocumentation(), versionedMappable.getIndex(), versionedMappable.isStatic());
 
         newEntry.setParentMethodDescriptor(this.remapDescriptor(newEntry.getParentMethodDescriptor()));
         newEntry.setType(this.remapType(newEntry.getType()));
@@ -922,6 +925,25 @@ public abstract class AbstractMappingCacheManager
         loadOverrides(gameVersionName);
 
         return this.overridesMethodsCache.getOrDefault(gameVersionName, Maps.newHashMap()).getOrDefault(classMethodVersionedId, Lists.newArrayList());
+    }
+
+    public boolean isLocked(final UUID gameVersionId, final UUID mappingTypeId, final UUID versionedMappableId) {
+        if (!lockedVersionedMappables.contains(gameVersionId, mappingTypeId)) {
+            LOGGER.info("Pulling locking cache for game version: " + gameVersionId + " and mapping type id: " + mappingTypeId);
+            this.databaseClient
+              .execute(
+                "Select Distinct versioned_mappable_id from protected_mappable as pm JOIN versioned_mappable vm on vm.id = pm.versioned_mappable_id "
+                  + "WHERE pm.mapping_type_id = '" + mappingTypeId.toString() + "' and vm.game_version_id = '" + gameVersionId.toString() + "'"
+              ).as(UUID.class)
+              .fetch()
+              .all()
+              .collect(Collectors.toSet())
+              .blockOptional()
+              .ifPresent(lockings -> this.lockedVersionedMappables.put(gameVersionId, mappingTypeId, lockings));
+            LOGGER.info("Pulled locking cache for game version: " + gameVersionId + " and mapping type id: " + mappingTypeId);
+        }
+
+        return lockedVersionedMappables.get(gameVersionId, mappingTypeId).contains(versionedMappableId);
     }
 
     private void loadOverrides(final String gameVersionName)

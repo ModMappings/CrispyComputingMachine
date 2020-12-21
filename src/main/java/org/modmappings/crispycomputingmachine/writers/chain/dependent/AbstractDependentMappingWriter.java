@@ -14,10 +14,7 @@ import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.core.MappingTypeDMO;
 import org.modmappings.mmms.repository.model.core.release.ReleaseComponentDMO;
 import org.modmappings.mmms.repository.model.core.release.ReleaseDMO;
-import org.modmappings.mmms.repository.model.mapping.mappable.MappableDMO;
-import org.modmappings.mmms.repository.model.mapping.mappable.MappableTypeDMO;
-import org.modmappings.mmms.repository.model.mapping.mappable.VersionedMappableDMO;
-import org.modmappings.mmms.repository.model.mapping.mappable.VisibilityDMO;
+import org.modmappings.mmms.repository.model.mapping.mappable.*;
 import org.modmappings.mmms.repository.model.mapping.mappings.DistributionDMO;
 import org.modmappings.mmms.repository.model.mapping.mappings.MappingDMO;
 import org.springframework.batch.item.ItemWriter;
@@ -68,9 +65,9 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
         final Map<ExternalMapping, MappableDMO> mappablesToSave = new LinkedHashMap<>();
         final Map<Tuple2<UUID, String>, ReleaseDMO> releasesToSave = new LinkedHashMap<>();
         final Map<ExternalMapping, MappingDMO> mappingsToSave = new LinkedHashMap<>();
+        final Map<ExternalMapping, ProtectedMappableInformationDMO> protectedMappablesToSave = new LinkedHashMap<>();
         final Map<ExternalMapping, ReleaseComponentDMO> releaseComponentsToSave = new LinkedHashMap<>();
         final List<VersionedMappableDMO> versionedMappablesToSave = Lists.newArrayList();
-
 
         final Set<ReleaseDMO> releasesToUpdate = new HashSet<>();
         if (mappings.isEmpty())
@@ -188,7 +185,7 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
             }
 
             final MappingCacheEntry currentEntry = CacheUtils.getOutputMappingCacheEntry(evm, targetChainCacheManager);
-            final boolean isOldMapping = currentEntry != null && currentEntry.getInput().equals(evm.getInput()) && currentEntry.getOutput().equals(evm.getOutput()) && versionedMappableId.equals(currentEntry.getVersionedMappableId());
+            final boolean isOldMapping = currentEntry != null && currentEntry.getInput().equals(evm.getInput()) && currentEntry.getOutput().equals(evm.getOutput()) && versionedMappableId.equals(currentEntry.getVersionedMappableId()) && currentEntry.getDocumentation().equals(evm.getDocumentation());
             final UUID mappingId = isOldMapping ? currentEntry.getMappingId() : UUID.randomUUID();
 
             final ReleaseComponentDMO releaseComponent = new ReleaseComponentDMO(
@@ -197,6 +194,15 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
                     mappingId
             );
             releaseComponentsToSave.put(evm, releaseComponent);
+
+            if (evm.isLocked() && !targetChainCacheManager.isLocked(gameVersion.getId(), mappingType.getId(), versionedMappableId)) {
+                protectedMappablesToSave.put(evm, new ProtectedMappableInformationDMO(
+                      UUID.randomUUID(),
+                      versionedMappableId,
+                      mappingType.getId()
+                  )
+                );
+            }
 
             if (!isOldMapping) {
                 final MappingDMO mapping = new MappingDMO(
@@ -207,7 +213,7 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
                                 mappingType.getId(),
                                 evm.getInput(),
                                 evm.getOutput(),
-                                "",
+                                evm.getDocumentation(),
                                 evm.getExternalDistribution().getDmo()
                 );
                 mappingsToSave.put(evm, mapping);
@@ -273,6 +279,20 @@ public abstract class AbstractDependentMappingWriter  implements ItemWriter<Exte
 
             LOGGER.warn(String.format("Created: %d new %s mappings from: %d local new instances of: %s mappings", rowsUpdated, mappings.get(0).getMappableType().name().toLowerCase(), mappingsToSave.size(), mappingName));
         }
+
+        if (protectedMappablesToSave.size() > 0)
+        {
+            final Long rowsUpdated = databaseClient.insert()
+                                       .into(ProtectedMappableInformationDMO.class)
+                                       .using(Flux.fromIterable(protectedMappablesToSave.values()))
+                                       .fetch()
+                                       .all()
+                                       .count()
+                                       .block();
+
+            LOGGER.warn(String.format("Created: %d new %s protected mappables from: %d local new instances of: %s mappings", rowsUpdated, mappings.get(0).getMappableType().name().toLowerCase(), mappingsToSave.size(), mappingName));
+        }
+
 
         if (releaseComponentsToSave.size() > 0)
         {

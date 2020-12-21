@@ -57,6 +57,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                 null,
                 entry.isStatic()
               ))
+                .peek(mapping -> mapping.setLocked(true)) // All classes in MCP are locked.
                 .forEach(classes::add);
           },
           (releaseName, classes) -> mcpConfigMethods = mcpConfigMappingCacheManager.getAllMethods(),
@@ -293,11 +294,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                                  parameter.getParentMethodOutput(),
                                  parameter.getParentMethodDescriptor()
                                );
-
-                               if (parsedMethodMappings.get(ownerRef) == null)
-                               {
-                                   System.out.println("Hello");
-                               }
 
                                final ExternalMapping mapping = new ExternalMapping(
                                  inputMapping,
