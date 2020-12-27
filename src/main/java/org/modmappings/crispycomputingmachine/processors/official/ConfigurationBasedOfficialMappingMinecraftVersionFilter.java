@@ -10,7 +10,7 @@ import java.util.Arrays;
 @Component
 public class ConfigurationBasedOfficialMappingMinecraftVersionFilter implements ItemProcessor<VersionsItem, VersionsItem> {
 
-    @Value("${importer.versions:}")
+    @Value("${importer.game_versions:}")
     String[] versionsToImport;
 
     @Override

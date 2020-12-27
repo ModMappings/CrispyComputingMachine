@@ -1,6 +1,8 @@
 package org.modmappings.crispycomputingmachine.processors.mcp;
 
 import com.google.common.collect.Maps;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.modmappings.crispycomputingmachine.cache.MCPConfigMappingCacheManager;
 import org.modmappings.crispycomputingmachine.cache.MappingCacheEntry;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 
 public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleMappingParsingProcessor
 {
+    private static final Logger LOGGER = LogManager.getLogger();
 
     private static Collection<MappingCacheEntry>   mcpConfigClasses     = Collections.emptyList();
     private static Collection<MappingCacheEntry>   mcpConfigMethods     = Collections.emptyList();
@@ -78,7 +81,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                   }
 
                   final String[] releaseNameComponents = releaseName.split("-");
-                  final String release = releaseNameComponents[0];
                   final String gameVersion = releaseNameComponents[1];
 
                   final String[] lineComponents = line.split(",");
@@ -95,7 +97,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                                  outputMapping,
                                  ExternalMappableType.METHOD,
                                  gameVersion,
-                                 release,
+                                 releaseName,
                                  method.getParentClassOutput(),
                                  "",
                                  "",
@@ -116,7 +118,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
           },
           (releaseName, classes, methods) -> {
               final String[] releaseNameComponents = releaseName.split("-");
-              final String release = releaseNameComponents[0];
               final String gameVersion = releaseNameComponents[1];
 
               final Set<String> knownMethods = methods.parallelStream().map(ExternalMapping::getInput).collect(Collectors.toSet());
@@ -130,7 +131,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                       "<init>",
                       ExternalMappableType.METHOD,
                       gameVersion,
-                      release,
+                      releaseName,
                       constructorMethod.getParentClassOutput(),
                       "",
                       "",
@@ -152,7 +153,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                       noneMappedMethod.getOutput(),
                       ExternalMappableType.METHOD,
                       gameVersion,
-                      release,
+                      releaseName,
                       noneMappedMethod.getParentClassOutput(),
                       "",
                       "",
@@ -183,7 +184,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                   }
 
                   final String[] releaseNameComponents = releaseName.split("-");
-                  final String release = releaseNameComponents[0];
                   final String gameVersion = releaseNameComponents[1];
 
                   final String[] lineComponents = line.split(",");
@@ -201,7 +201,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                                  outputMapping,
                                  ExternalMappableType.FIELD,
                                  gameVersion,
-                                 release,
+                                 releaseName,
                                  field.getParentClassOutput(),
                                  "",
                                  "",
@@ -222,7 +222,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
           },
           (releaseName, classes, fields) -> {
               final String[] releaseNameComponents = releaseName.split("-");
-              final String release = releaseNameComponents[0];
               final String gameVersion = releaseNameComponents[1];
 
               final Set<String> knownFields = fields.parallelStream().map(ExternalMapping::getInput).collect(Collectors.toSet());
@@ -236,7 +235,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                       noneMappedField.getOutput(),
                       ExternalMappableType.FIELD,
                       gameVersion,
-                      release,
+                      releaseName,
                       noneMappedField.getParentClassOutput(),
                       "",
                       "",
@@ -258,6 +257,19 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                       externalMapping.getDescriptor()
                     ),
                     Function.identity()));
+
+              try {
+                  //noinspection ResultOfMethodCallIgnored
+                  methods.parallelStream()
+                    .collect(Collectors.toMap(externalMapping -> new MethodRef(
+                        externalMapping.getParentClassMapping(),
+                        externalMapping.getOutput(),
+                        externalMapping.getDescriptor()
+                      ),
+                      Function.identity()));
+              } catch (Exception ex) {
+                  LOGGER.error("Detected duplicate methods with the same signature and name in the same class. This is likely a mapping error. Proceed with caution!");
+              }
           },
           new ISimpleParameterParser()
           {
@@ -277,7 +289,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                   }
 
                   final String[] releaseNameComponents = releaseName.split("-");
-                  final String release = releaseNameComponents[0];
                   final String gameVersion = releaseNameComponents[1];
 
                   final String[] lineComponents = line.split(",");
@@ -300,7 +311,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                                  outputMapping,
                                  ExternalMappableType.PARAMETER,
                                  gameVersion,
-                                 release,
+                                 releaseName,
                                  parameter.getParentClassOutput(),
                                  parsedMethodMappings.get(ownerRef) == null ? parameter.getParentMethodOutput() : parsedMethodMappings.get(ownerRef).getOutput(),
                                  parameter.getParentMethodDescriptor(),
@@ -320,7 +331,6 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
           },
           (releaseName, classes, methods, parameters) -> {
               final String[] releaseNameComponents = releaseName.split("-");
-              final String release = releaseNameComponents[0];
               final String gameVersion = releaseNameComponents[1];
 
               final Set<String> knownParameters = parameters.parallelStream().map(ExternalMapping::getInput).collect(Collectors.toSet());
@@ -340,7 +350,7 @@ public abstract class AbstractMCPMappingParsingProcessor extends AbstractSimpleM
                       noneMappedParameter.getOutput(),
                       ExternalMappableType.PARAMETER,
                       gameVersion,
-                      release,
+                      releaseName,
                       noneMappedParameter.getParentClassOutput(),
                       parsedMethodMappings.get(ownerRef) == null ? noneMappedParameter.getParentMethodOutput() : parsedMethodMappings.get(ownerRef).getOutput(),
                       noneMappedParameter.getParentMethodDescriptor(),

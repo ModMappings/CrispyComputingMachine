@@ -26,12 +26,14 @@ public abstract class AbstractDownloadingProcessor implements ItemProcessor<Stri
     @Value("${importer.directories.working:file:working}")
     Resource workingDirectory;
 
+    @Value("${importer.files.forced:file:none-existing-default-forced-file.jar}")
+    Resource forcedFile;
+
     public AbstractDownloadingProcessor(final Function<String, URL> releaseToUrlFunction, final String fileName, final String mappingTypeName) {
         this.releaseToUrlFunction = releaseToUrlFunction;
         this.fileName = fileName;
         this.mappingTypeName = mappingTypeName;
     }
-
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
@@ -43,7 +45,16 @@ public abstract class AbstractDownloadingProcessor implements ItemProcessor<Stri
             versionWorkingDirectory.mkdirs();
             final File mappingJarFile = new File(versionWorkingDirectory, fileName);
 
-            final URL mappingJarURL = releaseToUrlFunction.apply(item);
+            URL mappingJarURL = releaseToUrlFunction.apply(item);
+
+            if (forcedFile.exists() && forcedFile.isReadable()) {
+                final File forcedTargetFile = forcedFile.getFile();
+                if (forcedTargetFile.getName().replace(".jar", "").equals(item)) {
+                    LOGGER.warn("Found forced file: " + forcedTargetFile.getAbsolutePath() + " for release item: " + item + " overriding maven entry with file.");
+                    mappingJarURL = forcedTargetFile.toURI().toURL();
+                }
+            }
+
             final InputStream in = mappingJarURL.openStream();
             Files.copy(in, mappingJarFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return item;

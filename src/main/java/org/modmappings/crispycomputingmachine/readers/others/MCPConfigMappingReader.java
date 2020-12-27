@@ -54,10 +54,18 @@ public class MCPConfigMappingReader extends AbstractMavenBasedMappingReader {
 
                   final String leftDatePart = leftParts[1];
                   final String rightDatePart = rightParts[1];
-                  final LocalDate leftDate = LocalDate.parse(leftDatePart, DATE_TIME_FORMATTER);
-                  final LocalDate rightDate = LocalDate.parse(rightDatePart, DATE_TIME_FORMATTER);
+                  try {
+                      final LocalDate leftDate = LocalDate.parse(leftDatePart, DATE_TIME_FORMATTER);
+                      try {
+                          final LocalDate rightDate = LocalDate.parse(rightDatePart, DATE_TIME_FORMATTER);
 
-                  return leftDate.compareTo(rightDate);
+                          return leftDate.compareTo(rightDate);
+                      } catch (Exception ignored) {
+                          return -1;
+                      }
+                  } catch (Exception ignored) {
+                      return 1;
+                  }
               });
 
               return parsedVersions;
