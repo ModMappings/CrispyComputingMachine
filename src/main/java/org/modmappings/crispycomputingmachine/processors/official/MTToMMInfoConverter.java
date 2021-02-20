@@ -169,7 +169,9 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                 item.getVersion().getId(),
                 Date.from(Instant.from(DateTimeFormatter.ISO_ZONED_DATE_TIME.parse(item.getVersion().getReleaseTime()))),
                 new LinkedList<>(inputToClassMappingData.values()),
-                isPreRelease(item.getVersion()), isSnapshot(item.getVersion()));
+                isPreRelease(item.getVersion()), isSnapshot(item.getVersion()),
+                item.getClientData(),
+                item.getServerData());
     }
 
     private static void addExternalMethodsToExternalClassesFromOverrides(final Map<String, ExternalClass> outputMappingAndClassesToCheck)

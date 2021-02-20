@@ -19,6 +19,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
 import java.io.File;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
@@ -57,7 +62,10 @@ public class OfficialMappingReader extends AbstractItemStreamItemReader<External
             File manifestFile = new File(workingDir, Constants.MANIFEST_WORKING_FILE);
             Assert.state(manifestFile.exists(), "Minecraft version manifest file does not exist!");
             final LauncherMetadata manifestJson = Utils.loadJson(manifestFile.toPath(), LauncherMetadata.class);
-            this.versionIterator = Iterators.peekingIterator(manifestJson.getVersions().iterator());
+            final List<VersionsItem> versions = manifestJson.getVersions();
+            versions.sort(Comparator.comparing(VersionsItem::getReleaseTime));
+
+            this.versionIterator = Iterators.peekingIterator(versions.iterator());
             LOGGER.info("Downloaded the Minecraft Launcher Manifest to: " + manifestFile.getAbsolutePath());
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load manifest json.", e);

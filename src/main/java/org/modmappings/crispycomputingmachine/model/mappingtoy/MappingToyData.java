@@ -14,10 +14,19 @@ public class MappingToyData {
     private final VersionsItem version;
     private final SRGUtilsWrappedMappingFile mergedMappingData;
 
-    public MappingToyData(final Map<String, MappingToyJarMetaData.ClassInfo> mappingToyData, final VersionsItem version, final IMappingFile mergedMappingData) {
+    private final SRGUtilsWrappedMappingFile clientData;
+    private final SRGUtilsWrappedMappingFile serverData;
+
+    public MappingToyData(
+      final Map<String, MappingToyJarMetaData.ClassInfo> mappingToyData,
+      final VersionsItem version,
+      final IMappingFile mergedMappingData,
+      final SRGUtilsWrappedMappingFile clientData, final SRGUtilsWrappedMappingFile serverData) {
         this.mappingToyData = mappingToyData;
         this.version = version;
         this.mergedMappingData = new SRGUtilsWrappedMappingFile(mergedMappingData);
+        this.clientData = clientData;
+        this.serverData = serverData;
     }
 
     public Map<String, MappingToyJarMetaData.ClassInfo> getMappingToyData() {
@@ -30,5 +39,15 @@ public class MappingToyData {
 
     public SRGUtilsWrappedMappingFile getMergedMappingData() {
         return mergedMappingData;
+    }
+
+    public SRGUtilsWrappedMappingFile getClientData()
+    {
+        return clientData;
+    }
+
+    public SRGUtilsWrappedMappingFile getServerData()
+    {
+        return serverData;
     }
 }

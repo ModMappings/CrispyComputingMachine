@@ -27,6 +27,7 @@ import reactor.util.function.Tuples;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -41,21 +42,22 @@ public abstract class AbstractMappingCacheManager
 
     private AbstractMappingCacheManager remappingManager = this;
 
-    private Map<MappingKey, MappingCacheEntry>    outputCache                       = new HashMap<>();
-    private Map<MappingKey, MappingCacheEntry>    inputCache                        = new HashMap<>();
-    private Map<UUID, MappableDMO>                mappableCache                     = new HashMap<>();
-    private Map<UUID, MappingCacheEntry>          versionedMappableIdClassCache     = new HashMap<>();
-    private Map<UUID, MappingCacheEntry>          versionedMappableIdMethodCache    = new HashMap<>();
-    private Map<UUID, MappingCacheEntry>          versionedMappableIdFieldCache     = new HashMap<>();
-    private Map<UUID, MappingCacheEntry>          versionedMappableIdParameterCache = new HashMap<>();
-    private Map<String, List<MappingCacheEntry>>  classMembers                      = new HashMap<>();
-    private Map<UUID, GameVersionDMO>             gameVersionIdCache                = new HashMap<>();
-    private Map<String, GameVersionDMO>           gameVersionNameCache              = new HashMap<>();
-    private Map<UUID, ReleaseDMO>                 releaseIdCache                    = new HashMap<>();
-    private Map<Tuple2<UUID, String>, ReleaseDMO> releaseNameCache                  = new HashMap<>();
-    private Map<String, Map<UUID, List<UUID>>>    superTypeCache                    = new HashMap<>();
-    private Map<String, Map<UUID, List<UUID>>> overridesMethodsCache    = new HashMap<>();
-    private Table<UUID, UUID, Set<UUID>>             lockedVersionedMappables = HashBasedTable.create();
+    private Map<MappingKey, MappingCacheEntry>     outputCache                       = new HashMap<>();
+    private Map<MappingKey, MappingCacheEntry>     inputCache                        = new HashMap<>();
+    private Map<UUID, MappableDMO>                 mappableCache                     = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>           versionedMappableIdClassCache     = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>           versionedMappableIdMethodCache    = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>           versionedMappableIdFieldCache     = new HashMap<>();
+    private Map<UUID, MappingCacheEntry>           versionedMappableIdParameterCache = new HashMap<>();
+    private Map<String, List<MappingCacheEntry>>   classMembers                      = new HashMap<>();
+    private Map<UUID, GameVersionDMO>              gameVersionIdCache                = new HashMap<>();
+    private Map<String, GameVersionDMO>            gameVersionNameCache              = new HashMap<>();
+    private Map<UUID, ReleaseDMO>                  releaseIdCache                    = new HashMap<>();
+    private Map<Tuple2<UUID, String>, ReleaseDMO>  releaseNameCache                  = new HashMap<>();
+    private Map<String, Map<UUID, List<UUID>>>     superTypeCache                    = new HashMap<>();
+    private Map<String, Map<UUID, List<UUID>>>     overridesMethodsCache             = new HashMap<>();
+    private Table<UUID, UUID, Set<UUID>>           lockedVersionedMappables          = HashBasedTable.create();
+    private Table<UUID, String, MappingCacheEntry> versionedClassInputMappings       = HashBasedTable.create();
 
     protected AbstractMappingCacheManager(final DatabaseClient databaseClient)
     {
@@ -117,15 +119,15 @@ public abstract class AbstractMappingCacheManager
 
                                  if (mce.getMappableType() == MappableTypeDMO.METHOD)
                                  {
-                                     mce.setDescriptor(this.remapDescriptor(mce.getDescriptor()));
+                                     mce.setDescriptor(this.remapDescriptor(mce.getDescriptor(), mce.getGameVersionId()));
                                  }
                                  if (mce.getMappableType() == MappableTypeDMO.PARAMETER)
                                  {
-                                     mce.setParentMethodDescriptor(this.remapDescriptor(mce.getParentMethodDescriptor()));
+                                     mce.setParentMethodDescriptor(this.remapDescriptor(mce.getParentMethodDescriptor(), mce.getGameVersionId()));
                                  }
                                  if (mce.getMappableType() == MappableTypeDMO.PARAMETER || mce.getMappableType() == MappableTypeDMO.FIELD)
                                  {
-                                     mce.setType(this.remapType(mce.getType()));
+                                     mce.setType(this.remapType(mce.getType(), mce.getGameVersionId()));
                                  }
 
                                  return mce;
@@ -138,7 +140,9 @@ public abstract class AbstractMappingCacheManager
                                  mce.getParentMethodDescriptor(),
                                  mce.getType(),
                                  mce.getDescriptor(),
-                                 usesMappingOnlyForOutputKeys()), Function.identity()
+                                 usesMappingOnlyForOutputKeys()),
+                               Function.identity(),
+                               (mappingCacheEntry, mappingCacheEntry2) -> mappingCacheEntry
                              ));
         this.inputCache = this.inputCache.values()
                             .stream()
@@ -150,15 +154,15 @@ public abstract class AbstractMappingCacheManager
 
                                 if (mce.getMappableType() == MappableTypeDMO.METHOD)
                                 {
-                                    mce.setDescriptor(this.remapDescriptor(mce.getDescriptor()));
+                                    mce.setDescriptor(this.remapDescriptor(mce.getDescriptor(), mce.getGameVersionId()));
                                 }
                                 if (mce.getMappableType() == MappableTypeDMO.PARAMETER)
                                 {
-                                    mce.setParentMethodDescriptor(this.remapDescriptor(mce.getParentMethodDescriptor()));
+                                    mce.setParentMethodDescriptor(this.remapDescriptor(mce.getParentMethodDescriptor(), mce.getGameVersionId()));
                                 }
                                 if (mce.getMappableType() == MappableTypeDMO.PARAMETER || mce.getMappableType() == MappableTypeDMO.FIELD)
                                 {
-                                    mce.setType(this.remapType(mce.getType()));
+                                    mce.setType(this.remapType(mce.getType(), mce.getGameVersionId()));
                                 }
 
                                 return mce;
@@ -171,7 +175,9 @@ public abstract class AbstractMappingCacheManager
                                 mce.getParentMethodDescriptor(),
                                 mce.getType(),
                                 mce.getDescriptor(),
-                                usesMappingOnlyForInputKeys()), Function.identity()
+                                usesMappingOnlyForInputKeys()),
+                              Function.identity(),
+                              (mappingCacheEntry, mappingCacheEntry2) -> mappingCacheEntry
                             ));
 
         LOGGER.info("Grabbing global mappables for: " + mappingTypeIds);
@@ -295,7 +301,8 @@ public abstract class AbstractMappingCacheManager
         final String mappingColumnName = isInput ? "input" : "output";
 
         return databaseClient.execute(String.format(
-          "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, m.documentation as documentation, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index, rc.release_id as release_id from mapping m\n" +
+          "SELECT  DISTINCT ON (m.%s, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor)  m.input as input, m.output as output, m.documentation as documentation, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index, rc.release_id as release_id from mapping m\n"
+            +
             "                        JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
             "                        JOIN game_version gv on vm.game_version_id = gv.id\n" +
             "                        JOIN mappable mp on vm.mappable_id = mp.id\n" +
@@ -386,7 +393,9 @@ public abstract class AbstractMappingCacheManager
     public MappingCacheEntry getMethodViaOutput(String mapping, String parentClass, String descriptor)
     {
         if (descriptor.length() != 0)
+        {
             descriptor = this.remapDescriptor(descriptor);
+        }
 
         final MappingKey id = new MappingKey(
           mapping,
@@ -404,7 +413,9 @@ public abstract class AbstractMappingCacheManager
     public MappingCacheEntry getFieldViaOutput(String mapping, String parentClass, String type)
     {
         if (type.length() != 0)
-        type = this.remapType(type);
+        {
+            type = this.remapType(type);
+        }
 
         final MappingKey id = new MappingKey(
           mapping,
@@ -422,10 +433,14 @@ public abstract class AbstractMappingCacheManager
     public MappingCacheEntry getParameterViaOutput(String mapping, String parentClass, String parentMethod, String parentMethodDescriptor, String type)
     {
         if (parentMethodDescriptor.length() != 0)
+        {
             parentMethodDescriptor = this.remapDescriptor(parentMethodDescriptor);
+        }
 
         if (type.length() != 1)
+        {
             type = this.remapType(type);
+        }
 
         final MappingKey id = new MappingKey(
           mapping,
@@ -478,7 +493,9 @@ public abstract class AbstractMappingCacheManager
     public MappingCacheEntry getMethodViaInput(String mapping, String parentClass, String descriptor)
     {
         if (descriptor.length() != 0)
+        {
             descriptor = this.remapDescriptor(descriptor);
+        }
 
         final MappingKey id = new MappingKey(
           mapping,
@@ -501,8 +518,10 @@ public abstract class AbstractMappingCacheManager
 
     public MappingCacheEntry getFieldViaInput(String mapping, String parentClass, String type)
     {
-        if(type.length() != 0)
+        if (type.length() != 0)
+        {
             type = this.remapType(type);
+        }
 
         final MappingKey id = new MappingKey(
           mapping,
@@ -526,10 +545,14 @@ public abstract class AbstractMappingCacheManager
     public MappingCacheEntry getParameterViaInput(String mapping, String parentClass, String parentMethod, String parentMethodDescriptor, String type)
     {
         if (parentMethodDescriptor.length() != 0)
+        {
             parentMethodDescriptor = this.remapDescriptor(parentMethodDescriptor);
+        }
 
         if (type.length() != 0)
+        {
             type = this.remapType(type);
+        }
 
         final MappingKey id = new MappingKey(
           mapping,
@@ -707,7 +730,11 @@ public abstract class AbstractMappingCacheManager
         this.versionedMappableIdFieldCache.put(versionedMappable.getId(), newEntry);
     }
 
-    public void registerNewParameter(final MappableDMO mappable, final VersionedMappableDMO versionedMappable, final MappingDMO mapping, final ReleaseComponentDMO releaseComponentDMO)
+    public void registerNewParameter(
+      final MappableDMO mappable,
+      final VersionedMappableDMO versionedMappable,
+      final MappingDMO mapping,
+      final ReleaseComponentDMO releaseComponentDMO)
     {
         final MappingCacheEntry newEntry = new MappingCacheEntry(
           mapping.getInput(),
@@ -807,19 +834,23 @@ public abstract class AbstractMappingCacheManager
         return this.versionedMappableIdParameterCache.get(id);
     }
 
-    public Collection<MappingCacheEntry> getAllClasses() {
+    public Collection<MappingCacheEntry> getAllClasses()
+    {
         return this.versionedMappableIdClassCache.values();
     }
 
-    public Collection<MappingCacheEntry> getAllMethods() {
+    public Collection<MappingCacheEntry> getAllMethods()
+    {
         return this.versionedMappableIdMethodCache.values();
     }
 
-    public Collection<MappingCacheEntry> getAllFields() {
+    public Collection<MappingCacheEntry> getAllFields()
+    {
         return this.versionedMappableIdFieldCache.values();
     }
 
-    public Collection<MappingCacheEntry> getAllParameters() {
+    public Collection<MappingCacheEntry> getAllParameters()
+    {
         return this.versionedMappableIdParameterCache.values();
     }
 
@@ -872,9 +903,64 @@ public abstract class AbstractMappingCacheManager
         return remappedMethodDesc.toString();
     }
 
+    public String remapDescriptor(final String descriptor, final UUID gameVersionId)
+    {
+        final MethodDesc methodDesc = new MethodDesc(descriptor);
+        final MethodDesc remappedMethodDesc = methodDesc.remap(
+          type -> Optional.ofNullable(this.remappingManager.getClassViaInput(type, gameVersionId))
+                    .map(MappingCacheEntry::getMappableId)
+                    .map(Objects::toString)
+        );
+        return remappedMethodDesc.toString();
+    }
+
+    private MappingCacheEntry getClassViaInput(final String input, final UUID gameVersionId)
+    {
+        if (!versionedClassInputMappings.containsRow(gameVersionId)) {
+            LOGGER.warn("Building class input cache for version: " + gameVersionId);
+
+            final List<UUID> mappingTypeIds = getMappingTypeIds();
+            final String mappingTypeFilterQueryComponent =
+              mappingTypeIds.stream()
+                .map(id -> "m.mapping_type_id = '" + id + "'")
+                .reduce((left, right) -> left + " or " + right).orElseThrow();
+
+            this.databaseClient.execute(String.format(
+              "SELECT m.input as input, m.output as output, m.documentation as documentation, mp.id as mappable_id, m.id as mapping_id, gv.created_on as game_version_created_on, vm.id as versioned_mappable_id, mp.type as mappable_type, pcm.output as parent_class_output, pmm.output as parent_method_output, pmvm.descriptor as parent_method_descriptor, gv.id as game_version_id, gv.name as game_version_name, vm.type as type, vm.descriptor as descriptor, vm.is_static as is_static, vm.index as index, rc.release_id as release_id from mapping m\n" +
+                "                        JOIN versioned_mappable vm on m.versioned_mappable_id = vm.id\n" +
+                "                        JOIN game_version gv on vm.game_version_id = gv.id\n" +
+                "                        JOIN mappable mp on vm.mappable_id = mp.id\n" +
+                "                        JOIN release_component rc on rc.mapping_id = m.id\n" +
+                "                        LEFT OUTER JOIN mapping pcm ON vm.parent_class_id = pcm.versioned_mappable_id and pcm.mapping_type_id = m.mapping_type_id\n" +
+                "                        LEFT OUTER JOIN mapping pmm ON vm.parent_method_id = pmm.versioned_mappable_id and pmm.mapping_type_id = m.mapping_type_id\n" +
+                "                        LEFT OUTER JOIN versioned_mappable pmvm ON vm.parent_method_id = pmvm.id \n" +
+                "                        WHERE (%s) and m.mappable_type = 'CLASS' and m.game_version_id = '%s'\n" +
+                "                        order by m.output, m.mapping_type_id, pcm.output, pmm.output, pmvm.descriptor, vm.descriptor, gv.created_on desc, m.created_on desc;",
+              mappingTypeFilterQueryComponent,
+              gameVersionId.toString()))
+              .as(MappingCacheEntry.class)
+              .fetch()
+              .all()
+              .collect(Collectors.toSet())
+              .block()
+              .forEach(mce -> versionedClassInputMappings.put(gameVersionId, mce.getInput(), mce));
+
+            LOGGER.warn("Finished building class input cache for version: " + gameVersionId);
+        }
+
+        return versionedClassInputMappings.get(gameVersionId, input);
+    }
     public String remapType(final String type)
     {
         return new RemappableType(type).remap(s -> Optional.ofNullable(this.remappingManager.getClassViaInput(s))
+                                                     .map(MappingCacheEntry::getMappableId)
+                                                     .map(Objects::toString)).getType();
+    }
+
+
+    public String remapType(final String type, final UUID gameVersionId)
+    {
+        return new RemappableType(type).remap(s -> Optional.ofNullable(this.remappingManager.getClassViaInput(s, gameVersionId))
                                                      .map(MappingCacheEntry::getMappableId)
                                                      .map(Objects::toString)).getType();
     }
@@ -927,8 +1013,10 @@ public abstract class AbstractMappingCacheManager
         return this.overridesMethodsCache.getOrDefault(gameVersionName, Maps.newHashMap()).getOrDefault(classMethodVersionedId, Lists.newArrayList());
     }
 
-    public boolean isLocked(final UUID gameVersionId, final UUID mappingTypeId, final UUID versionedMappableId) {
-        if (!lockedVersionedMappables.contains(gameVersionId, mappingTypeId)) {
+    public boolean isLocked(final UUID gameVersionId, final UUID mappingTypeId, final UUID versionedMappableId)
+    {
+        if (!lockedVersionedMappables.contains(gameVersionId, mappingTypeId))
+        {
             LOGGER.info("Pulling locking cache for game version: " + gameVersionId + " and mapping type id: " + mappingTypeId);
             this.databaseClient
               .execute(
@@ -985,7 +1073,8 @@ public abstract class AbstractMappingCacheManager
         return false;
     }
 
-    public boolean usesMappingOnlyForOutputKeys() {
+    public boolean usesMappingOnlyForOutputKeys()
+    {
         return false;
     }
 

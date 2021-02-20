@@ -11,6 +11,7 @@ import org.modmappings.crispycomputingmachine.model.mappings.ExternalMapping;
 import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.utils.CacheUtils;
 import org.modmappings.crispycomputingmachine.utils.Constants;
+import org.modmappings.crispycomputingmachine.utils.DatabaseUtils;
 import org.modmappings.crispycomputingmachine.utils.GameVersionUtils;
 import org.modmappings.mmms.repository.model.core.GameVersionDMO;
 import org.modmappings.mmms.repository.model.core.MappingTypeDMO;
@@ -38,7 +39,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.IntBinaryOperator;
 
-public abstract class AbstractInitialChainElementMappingWriter implements ItemWriter<ExternalMapping> {
+public abstract class AbstractInitialChainElementMappingWriter implements ItemWriter<ExternalMapping>
+{
 
     private static final Logger LOGGER = LogManager.getLogger();
 
@@ -51,9 +53,18 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
     private final DatabaseClient databaseClient;
 
     private final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager;
-    private final AbstractMappingCacheManager targetChainCacheManager;
+    private final AbstractMappingCacheManager           targetChainCacheManager;
 
-    protected AbstractInitialChainElementMappingWriter(final String mappingName, final String mappingTypeIn, final String mappingTypeOut, final boolean visible, final boolean editable, final DatabaseClient databaseClient, final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager, final AbstractMappingCacheManager targetChainCacheManager) {
+    protected AbstractInitialChainElementMappingWriter(
+      final String mappingName,
+      final String mappingTypeIn,
+      final String mappingTypeOut,
+      final boolean visible,
+      final boolean editable,
+      final DatabaseClient databaseClient,
+      final VanillaAndExternalMappingCacheManager vanillaAndExternalMappingCacheManager,
+      final AbstractMappingCacheManager targetChainCacheManager)
+    {
         this.mappingName = mappingName;
         this.mappingTypeIn = mappingTypeIn;
         this.mappingTypeOut = mappingTypeOut;
@@ -65,7 +76,8 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
     }
 
     @Override
-    public void write(final List<? extends ExternalMapping> items) throws Exception {
+    public void write(final List<? extends ExternalMapping> items) throws Exception
+    {
         final MappingTypeDMO mappingType = getOrCreateMappingType();
         final Map<ExternalMapping, MappableDMO> mappablesToSave = new LinkedHashMap<>();
         final Map<Tuple2<UUID, String>, ReleaseDMO> releasesToSave = new LinkedHashMap<>();
@@ -76,14 +88,18 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
         final Set<VersionedMappableDMO> versionedMappablesToUpdate = new HashSet<>();
 
         if (items.isEmpty())
+        {
             return;
+        }
 
         final ExternalMapping first = items.get(0);
         final Map<UUID, VersionedMappableDMO> versionedMappables = getVersionedMappablesForGameVersion(first.getGameVersion());
 
         items.forEach(evm -> {
             if (evm.getMappableType() == ExternalMappableType.PARAMETER && evm.getParentMethodMapping().equals("func_220073_a"))
+            {
                 System.out.println("Found it");
+            }
 
             if (!CacheUtils.alreadyExistsOnInput(evm, vanillaAndExternalMappingCacheManager, targetChainCacheManager))
             {
@@ -93,27 +109,28 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
 
             GameVersionDMO gameVersion = targetChainCacheManager.getGameVersion(evm.getGameVersion());
 
-            if(gameVersion == null)
+            if (gameVersion == null)
             {
                 LOGGER.error("Could not find game version with name: " + evm.getGameVersion() + "! This is not supposed to be possible. And things might break!");
                 return;
             }
 
             ReleaseDMO release = releasesToSave.containsKey(Tuples.of(mappingType.getId(), evm.getReleaseName())) ?
-                    releasesToSave.get(Tuples.of(mappingType.getId(), evm.getReleaseName())) :
-                    targetChainCacheManager.getRelease(mappingType.getId(), evm.getReleaseName());
+                                   releasesToSave.get(Tuples.of(mappingType.getId(), evm.getReleaseName())) :
+                                                                                                              targetChainCacheManager.getRelease(mappingType.getId(),
+                                                                                                                evm.getReleaseName());
 
             if (release == null)
             {
                 release = new ReleaseDMO(
-                        UUID.randomUUID(),
-                        Constants.SYSTEM_ID,
-                        Timestamp.from(Instant.now()),
-                        evm.getReleaseName(),
-                        gameVersion.getId(),
-                        mappingType.getId(),
-                        GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
-                        "new"
+                  UUID.randomUUID(),
+                  Constants.SYSTEM_ID,
+                  Timestamp.from(Instant.now()),
+                  evm.getReleaseName(),
+                  gameVersion.getId(),
+                  mappingType.getId(),
+                  GameVersionUtils.isPreRelease(evm.getGameVersion()) || GameVersionUtils.isSnapshot(evm.getGameVersion()),
+                  "new"
                 );
 
                 releasesToSave.put(Tuples.of(mappingType.getId(), evm.getReleaseName()), release);
@@ -134,38 +151,43 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
                 }
                 else
                 {
-                    LOGGER.warn("A discrepancy between: " + mappingName + " and vanilla was found. " + mappingName + " declares " + evm + " to belong to a different mapping not related. Attempting to correct vanilla.");
-                    if (targetMappable == null) {
+                    LOGGER.warn("A discrepancy between: " + mappingName + " and vanilla was found. " + mappingName + " declares " + evm
+                                  + " to belong to a different mapping not related. Attempting to correct vanilla.");
+                    if (targetMappable == null)
+                    {
                         LOGGER.warn("Creating a new mappable for: " + evm + " since " + mappingName + " declared it to be a new mapping. Not related.");
                         mappablesToSave.put(evm, new MappableDMO(
-                                        UUID.randomUUID(),
-                                        Constants.SYSTEM_ID,
-                                        Timestamp.from(Instant.now()),
-                                        MappableTypeDMO.valueOf(evm.getMappableType().name())
-                                )
+                            UUID.randomUUID(),
+                            Constants.SYSTEM_ID,
+                            Timestamp.from(Instant.now()),
+                            MappableTypeDMO.valueOf(evm.getMappableType().name())
+                          )
                         );
 
                         targetMappable = mappablesToSave.get(evm);
                     }
 
                     final UUID mappableId = targetMappable.getId();
+                    final MappableTypeDMO mappableTypeDMO = targetMappable.getType();
                     //This should exist, else what the hell is vanilla telling us.
-                    final VersionedMappableDMO toUpdate = alreadyKnownVersionedMappables.stream().filter(vm -> vm.getGameVersionId() == gameVersion.getId()).findFirst().map(toEdit -> new VersionedMappableDMO(
-                            toEdit.getId(),
-                            toEdit.getCreatedBy(),
-                            toEdit.getCreatedOn(),
-                            toEdit.getGameVersionId(),
-                            mappableId,
-                            toEdit.getVisibility(),
-                            toEdit.isStatic(),
-                            toEdit.getType(),
-                            toEdit.getParentClassId(),
-                            toEdit.getDescriptor(),
-                            toEdit.getParentMethodId(),
-                            toEdit.getSignature(),
-                            toEdit.isExternal(),
-                            toEdit.getIndex()
-                    )).orElseThrow();
+                    final VersionedMappableDMO toUpdate =
+                      alreadyKnownVersionedMappables.stream().filter(vm -> vm.getGameVersionId() == gameVersion.getId()).findFirst().map(toEdit -> new VersionedMappableDMO(
+                        toEdit.getId(),
+                        toEdit.getCreatedBy(),
+                        toEdit.getCreatedOn(),
+                        toEdit.getGameVersionId(),
+                        mappableId,
+                        mappableTypeDMO,
+                        toEdit.getParentClassId(),
+                        toEdit.getParentMethodId(),
+                        toEdit.getVisibility(),
+                        toEdit.isStatic(),
+                        toEdit.getType(),
+                        toEdit.getDescriptor(),
+                        toEdit.getSignature(),
+                        toEdit.isExternal(),
+                        toEdit.getIndex()
+                      )).orElseThrow();
 
                     //Store and update maps.
                     versionedMappablesToUpdate.add(toUpdate);
@@ -175,7 +197,12 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
             }
             else if (vanillaMappable != null && vanillaMappable != targetMappable)
             {
-                LOGGER.warn(String.format("Found a discrepancy between: %s and vanilla. The mapping: %s does not have the same mappables: %s and %s Since this writer is now allowed to correct. Vanilla will be leading.", mappingName, evm, vanillaMappable, targetMappable));
+                LOGGER.warn(String.format(
+                  "Found a discrepancy between: %s and vanilla. The mapping: %s does not have the same mappables: %s and %s Since this writer is now allowed to correct. Vanilla will be leading.",
+                  mappingName,
+                  evm,
+                  vanillaMappable,
+                  targetMappable));
                 targetMappable = vanillaMappable;
             }
 
@@ -184,43 +211,50 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
             releasesToUpdate.add(release);
 
             final UUID vanillaVersionedMappableId = CacheUtils.getInputMappingCacheEntry(
-                    evm,
-                    vanillaAndExternalMappingCacheManager,
-                    targetChainCacheManager
+              evm,
+              vanillaAndExternalMappingCacheManager,
+              targetChainCacheManager
             ).getVersionedMappableId();
 
             final MappingCacheEntry currentEntry = CacheUtils.getOutputMappingCacheEntry(evm, targetChainCacheManager);
-            final boolean isOldMapping = currentEntry != null && currentEntry.getInput().equals(evm.getInput()) && currentEntry.getOutput().equals(evm.getOutput()) && vanillaVersionedMappableId.equals(currentEntry.getVersionedMappableId());
+            final boolean isOldMapping =
+              currentEntry != null && currentEntry.getInput().equals(evm.getInput()) && currentEntry.getOutput().equals(evm.getOutput()) && vanillaVersionedMappableId.equals(
+                currentEntry.getVersionedMappableId());
             final UUID mappingId = isOldMapping ? currentEntry.getMappingId() : UUID.randomUUID();
 
             final ReleaseComponentDMO releaseComponent = new ReleaseComponentDMO(
-                    UUID.randomUUID(),
-                    release.getId(),
-                    mappingId
+              UUID.randomUUID(),
+              release.getId(),
+              mappingId
             );
             releaseComponentsToSave.put(evm, releaseComponent);
 
             if (!isOldMapping)
             {
                 final MappingDMO mapping = new MappingDMO(
-                                mappingId,
-                                Constants.SYSTEM_ID,
-                                Timestamp.from(Instant.now()),
-                                vanillaVersionedMappableId,
-                                mappingType.getId(),
-                                evm.getInput(),
-                                evm.getOutput(),
-                                "",
-                                evm.getExternalDistribution().getDmo()
+                  mappingId,
+                  Constants.SYSTEM_ID,
+                  Timestamp.from(Instant.now()),
+                  vanillaVersionedMappableId,
+                  mappingType.getId(),
+                  evm.getInput(),
+                  evm.getOutput(),
+                  "",
+                  evm.getExternalDistribution().getDmo(),
+                  "",
+                  "",
+                  gameVersion.getId(),
+                  targetMappable.getType(),
+                  targetMappable.getId()
                 );
                 mappingsToSave.put(evm, mapping);
 
                 CacheUtils.registerNewEntry(
-                                targetMappable,
-                                versionedMappables.get(vanillaVersionedMappableId),
-                                mapping,
-                                releaseComponent,
-                                targetChainCacheManager
+                  targetMappable,
+                  versionedMappables.get(vanillaVersionedMappableId),
+                  mapping,
+                  releaseComponent,
+                  targetChainCacheManager
                 );
             }
         });
@@ -228,45 +262,50 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
         if (mappablesToSave.size() > 0)
         {
             final Long rowsUpdated = databaseClient.insert()
-                    .into(MappableDMO.class)
-                    .using(Flux.fromIterable(mappablesToSave.values()))
-                    .fetch()
-                    .all()
-                    .count()
-                    .block();
+                                       .into(MappableDMO.class)
+                                       .using(Flux.fromIterable(mappablesToSave.values()))
+                                       .fetch()
+                                       .all()
+                                       .count()
+                                       .block();
 
-            LOGGER.warn("Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " mappables from: " + mappablesToSave.size() + " local new instances.");
+            LOGGER.warn(
+              "Created: " + rowsUpdated + " new " + items.get(0).getMappableType().name().toLowerCase() + " mappables from: " + mappablesToSave.size() + " local new instances.");
         }
 
-        if (versionedMappablesToUpdate.size() > 0) {
+        if (versionedMappablesToUpdate.size() > 0)
+        {
             final Long rowsUpdated = (long) Flux.fromIterable(versionedMappablesToUpdate).flatMap(vm -> databaseClient.update()
-                    .table(VersionedMappableDMO.class)
-                    .using(vm)
-                    .fetch()
-                    .rowsUpdated())
-                    .collectList()
-                    .map(l -> l.stream().mapToInt(i -> i).reduce(new IntBinaryOperator() {
-                        @Override
-                        public int applyAsInt(final int i, final int i1) {
-                            return i + i1;
-                        }
-                    }))
-                    .doOnError(error -> LOGGER.error("Failed to save: ", error))
-                    .block()
-                    .getAsInt();
+                                                                                                          .table(VersionedMappableDMO.class)
+                                                                                                          .using(vm)
+                                                                                                          .fetch()
+                                                                                                          .rowsUpdated())
+                                              .collectList()
+                                              .map(l -> l.stream().mapToInt(i -> i).reduce(new IntBinaryOperator()
+                                              {
+                                                  @Override
+                                                  public int applyAsInt(final int i, final int i1)
+                                                  {
+                                                      return i + i1;
+                                                  }
+                                              }))
+                                              .doOnError(error -> LOGGER.error("Failed to save: ", error))
+                                              .block()
+                                              .getAsInt();
 
-            LOGGER.warn("Updated: " + rowsUpdated + " " + items.get(0).getMappableType().name().toLowerCase() + " versioned mappables from: " + versionedMappablesToUpdate.size() + " local updated instances");
+            LOGGER.warn("Updated: " + rowsUpdated + " " + items.get(0).getMappableType().name().toLowerCase() + " versioned mappables from: " + versionedMappablesToUpdate.size()
+                          + " local updated instances");
         }
 
         if (releasesToSave.size() > 0)
         {
             final Long rowsUpdated = databaseClient.insert()
-                    .into(ReleaseDMO.class)
-                    .using(Flux.fromIterable(releasesToSave.values()))
-                    .fetch()
-                    .all()
-                    .count()
-                    .block();
+                                       .into(ReleaseDMO.class)
+                                       .using(Flux.fromIterable(releasesToSave.values()))
+                                       .fetch()
+                                       .all()
+                                       .count()
+                                       .block();
 
             LOGGER.warn(String.format("Created: %d new releases from: %d local new instances of: %s mappings", rowsUpdated, releasesToSave.size(), mappingName));
         }
@@ -274,76 +313,100 @@ public abstract class AbstractInitialChainElementMappingWriter implements ItemWr
         if (mappingsToSave.size() > 0)
         {
             final Long rowsUpdated = databaseClient.insert()
-                    .into(MappingDMO.class)
-                    .using(Flux.fromIterable(mappingsToSave.values()))
-                    .fetch()
-                    .all()
-                    .count()
-                    .block();
+                                       .into(MappingDMO.class)
+                                       .using(Flux.fromIterable(mappingsToSave.values()))
+                                       .fetch()
+                                       .all()
+                                       .count()
+                                       .block();
 
-            LOGGER.warn(String.format("Created: %d new %s mappings from: %d local new instances of: %s mappings", rowsUpdated, items.get(0).getMappableType().name().toLowerCase(), mappingsToSave.size(), mappingName));
+            LOGGER.warn(String.format("Created: %d new %s mappings from: %d local new instances of: %s mappings",
+              rowsUpdated,
+              items.get(0).getMappableType().name().toLowerCase(),
+              mappingsToSave.size(),
+              mappingName));
         }
 
         if (releaseComponentsToSave.size() > 0)
         {
             final Long rowsUpdated = databaseClient.insert()
-                    .into(ReleaseComponentDMO.class)
-                    .using(Flux.fromIterable(releaseComponentsToSave.values()))
-                    .fetch()
-                    .all()
-                    .count()
-                    .block();
+                                       .into(ReleaseComponentDMO.class)
+                                       .using(Flux.fromIterable(releaseComponentsToSave.values()))
+                                       .fetch()
+                                       .all()
+                                       .count()
+                                       .block();
 
-            LOGGER.warn(String.format("Created: %d new %s release component from: %d local new instances of: %s mappings", rowsUpdated, items.get(0).getMappableType().name().toLowerCase(), releaseComponentsToSave.size(), mappingName));
+            LOGGER.warn(String.format("Created: %d new %s release component from: %d local new instances of: %s mappings",
+              rowsUpdated,
+              items.get(0).getMappableType().name().toLowerCase(),
+              releaseComponentsToSave.size(),
+              mappingName));
         }
 
         releasesToUpdate.forEach(release -> {
             release.setState(items.get(0).getMappableType().name().toLowerCase());
 
             databaseClient.update()
-                    .table(ReleaseDMO.class)
-                    .using(release)
-                    .fetch()
-                    .rowsUpdated()
-                    .block();
+              .table(ReleaseDMO.class)
+              .using(release)
+              .fetch()
+              .rowsUpdated()
+              .block();
         });
+
+        LOGGER.warn("Running post processing steps.");
+        LOGGER.info("Updating packages.");
+
+        DatabaseUtils.updatePackages(databaseClient);
+
+        LOGGER.info("Updated packages.");
+        LOGGER.warn("Ran post processing steps.");
     }
 
     protected abstract boolean shouldCorrectVanilla();
 
-    private Map<UUID, VersionedMappableDMO> getVersionedMappablesForGameVersion(String version) {
+    private Map<UUID, VersionedMappableDMO> getVersionedMappablesForGameVersion(String version)
+    {
         return databaseClient.execute(String.format("SELECT vc.* from versioned_mappable vc JOIN game_version gv on vc.game_version_id = gv.id WHERE gv.name = '%s'", version))
-                .as(VersionedMappableDMO.class)
-                .fetch()
-                .all()
-                .collectMap(VersionedMappableDMO::getId, Function.identity())
-                .block();
+                 .as(VersionedMappableDMO.class)
+                 .fetch()
+                 .all()
+                 .collectMap(VersionedMappableDMO::getId, Function.identity())
+                 .block();
     }
 
-    private List<VersionedMappableDMO> getVersionedMappablesForMappable(MappableDMO mappableDMO) {
+    private List<VersionedMappableDMO> getVersionedMappablesForMappable(MappableDMO mappableDMO)
+    {
         return databaseClient.execute(String.format("SELECT vc.* from versioned_mappable vc WHERE vc.mappable_id = '%s'", mappableDMO.getId()))
-                .as(VersionedMappableDMO.class)
-                .fetch()
-                .all()
-                .collectList()
-                .block();
+                 .as(VersionedMappableDMO.class)
+                 .fetch()
+                 .all()
+                 .collectList()
+                 .block();
     }
-
 
     private MappingTypeDMO getOrCreateMappingType()
     {
         return databaseClient.select()
-                .from(MappingTypeDMO.class)
-                .matching(Criteria.where("name").is(mappingName))
-                .fetch()
-                .first()
-                .switchIfEmpty(Mono.just(new MappingTypeDMO(UUID.randomUUID(), Constants.SYSTEM_ID, Timestamp.from(Instant.now()), mappingName, visible, editable, mappingTypeIn, mappingTypeOut))
-                        .flatMap(mappingType -> databaseClient.insert()
-                                .into(MappingTypeDMO.class)
-                                .using(mappingType)
-                                .fetch()
-                                .first()
-                                .map(r -> mappingType))
-                ).block();
+                 .from(MappingTypeDMO.class)
+                 .matching(Criteria.where("name").is(mappingName))
+                 .fetch()
+                 .first()
+                 .switchIfEmpty(Mono.just(new MappingTypeDMO(UUID.randomUUID(),
+                   Constants.SYSTEM_ID,
+                   Timestamp.from(Instant.now()),
+                   mappingName,
+                   visible,
+                   editable,
+                   mappingTypeIn,
+                   mappingTypeOut))
+                                  .flatMap(mappingType -> databaseClient.insert()
+                                                            .into(MappingTypeDMO.class)
+                                                            .using(mappingType)
+                                                            .fetch()
+                                                            .first()
+                                                            .map(r -> mappingType))
+                 ).block();
     }
 }

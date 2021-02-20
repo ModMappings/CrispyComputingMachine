@@ -7,7 +7,7 @@ services:
     shm_size: 2g
     command: ["postgres", "-c", "log_statement=all"]
     volumes:
-      - ./databases/alpha_test:/var/lib/postgresql/data
+      - ./databases/production_ready_mc_only:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     environment:

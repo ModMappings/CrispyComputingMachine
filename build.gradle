@@ -38,8 +38,8 @@ sourceSets {
 dependencies {
     implementation platform("org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}")
 
-    implementation 'org.modmappings.mmms:repository:0.1.0-380.g3f962b3-dirty'
-    implementation 'org.modmappings.mmms:er2dbc:0.1.0-380.g3f962b3-dirty'
+    implementation 'org.modmappings.mmms:repository:0.1.0-387.g717d507-dirty'
+    implementation 'org.modmappings.mmms:er2dbc:0.1.0-387.g717d507-dirty'
 
     implementation 'com.google.guava:guava:28.2-jre'
 

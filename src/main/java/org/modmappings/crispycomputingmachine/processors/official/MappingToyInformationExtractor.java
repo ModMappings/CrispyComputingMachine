@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
+import org.modmappings.crispycomputingmachine.model.srgutils.SRGUtilsWrappedMappingFile;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,6 +74,7 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
 
         final File metadataFile = new File(versionedMapDataDirectory, "joined_a_meta.json");
         final File clientMappingFile = new File(versionedMapDataDirectory, "client.txt");
+        final File serverMappingFile = new File(versionedMapDataDirectory, "server.txt");
 
         if (!metadataFile.exists())
         {
@@ -88,7 +90,13 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
 
         try (InputStream in = Files.newInputStream(metadataFile.toPath())) {
             Map<String, MappingToyJarMetaData.ClassInfo> resultData = Utils.GSON.fromJson(new InputStreamReader(in), new TypeToken<TreeMap<String, MappingToyJarMetaData.ClassInfo>>(){}.getType());
-            return new MappingToyData(resultData, item, IMappingFile.load(clientMappingFile).reverse());
+            return new MappingToyData(
+              resultData,
+              item,
+              IMappingFile.load(clientMappingFile).reverse(),
+              new SRGUtilsWrappedMappingFile(IMappingFile.load(clientMappingFile)),
+              new SRGUtilsWrappedMappingFile(IMappingFile.load(serverMappingFile))
+            );
         }
     }
 
