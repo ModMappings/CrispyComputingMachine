@@ -123,7 +123,7 @@ public class ExternalReleaseToExternalVanillaMappingProcessor implements ItemPro
                         externalMethod.getOutput(),
                         externalMethod.getDescriptor(),
                         ExternalVisibility.NOT_APPLICABLE,
-                        false,
+                        externalMethod.isStatic(),
                         argType,
                         null,
                         null,

@@ -121,3 +121,4 @@ fabric.properties
 scripts
 /databases/*
 src/main/generated/
+sql/

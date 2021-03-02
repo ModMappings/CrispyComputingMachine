@@ -1,5 +1,7 @@
 package org.modmappings.crispycomputingmachine.processors.official;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import net.minecraftforge.srgutils.IMappingFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -90,6 +92,29 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                 .filter(e -> !e.getKey().startsWith("net/minecraftforge"))
                 .forEach(e -> item.getMergedMappingData().findClassFromName(e.getKey()));
 
+        //Loop over all class again to collect override information on methods so that override logic
+        //Can properly find the correct overrides. This is needed because the obfuscator can
+        //reuse method names and descriptors in super classes which might add them to the inheritance tree
+        //of a particular method, which is not actually part of the same inheritance logic.
+        //
+        //Mapping toy, provides the root information, but we are interested in the entire tree,
+        //So we can collect all of them, and when we walk the tree we know which ones are considered
+        //to be part of that methods particular tree:
+        final Multimap<MethodRef, MethodRef> methodInheritanceData = HashMultimap.create();
+        item.getMappingToyData().entrySet().stream().sorted(Map.Entry.comparingByKey())
+          .filter(e -> !e.getKey().startsWith("net/minecraftforge"))
+          .forEach(e -> {
+              final String obfClassName = e.getKey();
+
+              e.getValue().getMethods().forEach((key, value) -> {
+                  final String obfMethodName = key.substring(0, key.indexOf("("));
+                  final String obfSignature = key.substring(obfMethodName.length());
+
+                  final MethodRef targetRef = new MethodRef(obfClassName, obfMethodName, obfSignature);
+                  value.getOverrides().forEach(override -> methodInheritanceData.put(override, targetRef));
+              });
+          });
+
         //Now loop over all classes again to populate the correct super classes, interfaces, methods etc
         item.getMappingToyData().entrySet().stream().sorted(
                 Map.Entry.comparingByKey()
@@ -126,7 +151,10 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                                         final String obfMethodName = entry.getKey().substring(0, entry.getKey().indexOf("("));
                                         final String obfSignature = entry.getKey().substring(obfMethodName.length());
 
-                                        final Set<MethodOverrideRef> overrides = findAllOverrideReferenceFrom(entry.getKey(), obfClassName, entry.getValue(), classData, item);
+                                        final Collection<MethodRef> validCandidates = entry.getValue().getOverrides().stream().flatMap(ref -> {
+                                            return methodInheritanceData.get(ref).stream();
+                                        }).collect(Collectors.toSet());
+                                        final Set<MethodOverrideRef> overrides = findAllOverrideReferenceFrom(entry.getKey(), obfClassName, entry.getValue(), classData, item, validCandidates);
                                         overrides.forEach(methodRef -> {
                                             handlePotentiallyExternalClass(methodRef.getOwner(), false, methodRef.isFromInterface(), item, inputToClassMappingData, outputToClassMappingData);
                                         });
@@ -187,7 +215,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                             () -> {
                                 //This should only happen on external classes.
                                 //Lets log however so we can make sure that this is really the case.
-                                LOGGER.warn("Creating external method reference: " + methodOverride);
+                                LOGGER.debug("Creating external method reference: " + methodOverride);
 
                                 final ExternalMethod newExternalMethod = new ExternalMethod(
                                         methodOverride.getName(),
@@ -208,7 +236,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         });
     }
 
-    private static Set<MethodOverrideRef> findAllOverrideReferenceFrom(final String methodId, final String parentClassName, final MappingToyJarMetaData.ClassInfo.MethodInfo methodInfo, final MappingToyJarMetaData.ClassInfo parentClass, final MappingToyData data)
+    private static Set<MethodOverrideRef> findAllOverrideReferenceFrom(final String methodId, final String parentClassName, final MappingToyJarMetaData.ClassInfo.MethodInfo methodInfo, final MappingToyJarMetaData.ClassInfo parentClass, final MappingToyData data, final Collection<MethodRef> validCandidates)
     {
         if (methodInfo.getOverrides().isEmpty())
             return Collections.emptySet();
@@ -216,16 +244,17 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         final Set<MethodOverrideRef> references = new HashSet<>();
 
         methodInfo.getOverrides().forEach(override -> {
-            handleInheritanceOverridingIn(methodId, parentClassName, data, references, override, parentClass.getSuper(), false);
-            parentClass.getInterfaces().forEach(interfaceName -> handleInheritanceOverridingIn(methodId, parentClassName, data, references, override, interfaceName, true));
+            handleInheritanceOverridingIn(methodId, parentClassName, data, references, override, parentClass.getSuper(), false, validCandidates);
+            parentClass.getInterfaces().forEach(interfaceName -> handleInheritanceOverridingIn(methodId, parentClassName, data, references, override, interfaceName, true,
+              validCandidates));
         });
 
         if (references.isEmpty())
         {
-            LOGGER.warn("Could not find any overriden methods for: " + methodId + " in superclass or interface of: " + parentClassName + ".");
-            LOGGER.warn("However the following where defined:");
+            LOGGER.debug("Could not find any overriden methods for: " + methodId + " in superclass or interface of: " + parentClassName + ".");
+            LOGGER.debug("However the following where defined:");
             methodInfo.getOverrides().forEach(override ->{
-                LOGGER.warn(" - " + override.getName() + override.getDesc() + " in: " + override.getOwner());
+                LOGGER.debug(" - " + override.getName() + override.getDesc() + " in: " + override.getOwner());
             });
             methodInfo.getOverrides().stream().map(mr -> new MethodOverrideRef(mr.getOwner(), mr.getName(), mr.getDesc(), parentClass.isInterface())).forEach(references::add);
             return references;
@@ -234,7 +263,15 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
         return references;
     }
 
-    private static void handleInheritanceOverridingIn(final String methodId, final String parentClassName, final MappingToyData data, final Set<MethodOverrideRef> references, final MethodRef override, String superName, boolean isInterface) {
+    private static void handleInheritanceOverridingIn(
+      final String methodId,
+      final String parentClassName,
+      final MappingToyData data,
+      final Set<MethodOverrideRef> references,
+      final MethodRef override,
+      String superName,
+      boolean isInterface,
+      final Collection<MethodRef> validCandidates) {
         while(data.getMappingToyData().containsKey(superName))
         {
             final MappingToyJarMetaData.ClassInfo superClassInfo = data.getMappingToyData().get(superName);
@@ -247,12 +284,16 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                                 if (!superInfo.getOverrides().contains(override))
                                     return false;
 
+                                final MethodRef candidateRef = new MethodRef(superClassInfo, superInfo);
+                                if (!validCandidates.contains(candidateRef))
+                                    return false;
+
                                 return methodId.equals(mi);
                             }).findFirst();
 
             if (superMethodInfo.isPresent())
             {
-                LOGGER.info("Overriding method: "+ methodId + " from: " + parentClassName + " with " + (isInterface ? "interface" : "superclass") +" : " + superName + " and method: " + superMethodInfo.get());
+                LOGGER.debug("Overriding method: "+ methodId + " from: " + parentClassName + " with " + (isInterface ? "interface" : "superclass") +" : " + superName + " and method: " + superMethodInfo.get());
 
                 references.add(
                         new MethodOverrideRef(
@@ -269,9 +310,9 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
             {
                 //If it is empty, we might be at the root and actually do not have a super that has that method defined.
                 //Check if we potentially have the method with the correct descriptor and name?
-                if (superClassInfo.getMethods().containsKey(methodId))
+                if (superClassInfo.getMethods().containsKey(methodId) && superName.equals(override.getOwner()))
                 {
-                    LOGGER.info("Overriding method: "+ methodId + " from: " + parentClassName + " with " + (isInterface ? "interface" : "superclass") +" : " + superName + " and method: " + methodId);
+                    LOGGER.debug("Overriding method: "+ methodId + " from: " + parentClassName + " with " + (isInterface ? "interface" : "superclass") +" : " + superName + " and method: " + methodId);
 
                     references.add(
                             new MethodOverrideRef(
@@ -287,7 +328,7 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                 else if (superName.equals(override.getOwner()) && superClassInfo.getMethods().containsKey(override.getName() + override.getDesc()))
                 {
                     final String overrideId = override.getName() + override.getDesc();
-                    LOGGER.info("Overriding method: "+ methodId + " from: " + parentClassName + " with " + (isInterface ? "interface" : "superclass") +" : " + superName + " and method: " + overrideId);
+                    LOGGER.debug("Overriding method: "+ methodId + " from: " + parentClassName + " with " + (isInterface ? "interface" : "superclass") +" : " + superName + " and method: " + overrideId);
 
                     references.add(
                             new MethodOverrideRef(
@@ -302,7 +343,8 @@ public class MTToMMInfoConverter implements ItemProcessor<MappingToyData, Extern
                 }
 
                 superName = superClassInfo.getSuper();
-                superClassInfo.getInterfaces().forEach(interfaceName -> handleInheritanceOverridingIn(methodId, parentClassName, data, references, override, interfaceName, true));
+                superClassInfo.getInterfaces().forEach(interfaceName -> handleInheritanceOverridingIn(methodId, parentClassName, data, references, override, interfaceName, true,
+                  validCandidates));
             }
         }
     }

@@ -1,6 +1,8 @@
 package org.modmappings.crispycomputingmachine.utils;
 
 import net.minecraftforge.srgutils.IMappingFile;
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
+import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
 import org.modmappings.crispycomputingmachine.model.srgutils.SRGUtilsWrappedMappingFile;
 
 public class MethodRef implements Comparable<MethodRef> {
@@ -8,10 +10,21 @@ public class MethodRef implements Comparable<MethodRef> {
     private final String name;
     private final String desc;
 
+    public MethodRef(ExternalVanillaMapping evm) {
+        this(evm.getParentClassMapping(), evm.getOutput(), evm.getDescriptor());
+    }
+
     public MethodRef(String owner, String name, String desc) {
         this.owner = owner;
         this.name = name;
         this.desc = desc;
+    }
+
+    public MethodRef(MappingToyJarMetaData.ClassInfo classInfo, MappingToyJarMetaData.ClassInfo.MethodInfo methodInfo)
+    {
+        this.owner = classInfo.getName();
+        this.name = methodInfo.getName();
+        this.desc = methodInfo.getDesc();
     }
 
     @Override

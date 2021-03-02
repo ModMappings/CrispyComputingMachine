@@ -10,6 +10,7 @@ import org.modmappings.crispycomputingmachine.model.launcher.VersionsItem;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyData;
 import org.modmappings.crispycomputingmachine.model.mappingtoy.MappingToyJarMetaData;
 import org.modmappings.crispycomputingmachine.model.srgutils.SRGUtilsWrappedMappingFile;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +23,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.logging.Filter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 
 @Component
 public class MappingToyInformationExtractor implements ItemProcessor<VersionsItem, MappingToyData>, InitializingBean {
@@ -60,6 +64,8 @@ public class MappingToyInformationExtractor implements ItemProcessor<VersionsIte
 
         //Invoke mapping toy.
         try {
+            MappingToy.log.setLevel(Level.SEVERE);
+            MappingToy.log.setFilter(record -> false);
             MappingToy.main(mappingToyArgs.toArray(new String[0]));
         }
         catch (NumberFormatException ex)

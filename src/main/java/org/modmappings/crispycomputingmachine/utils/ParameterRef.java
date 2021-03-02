@@ -1,6 +1,7 @@
 package org.modmappings.crispycomputingmachine.utils;
 
 import net.minecraftforge.srgutils.IMappingFile;
+import org.modmappings.crispycomputingmachine.model.mappings.ExternalVanillaMapping;
 import org.modmappings.crispycomputingmachine.model.srgutils.SRGUtilsWrappedMappingFile;
 
 public class ParameterRef implements Comparable<ParameterRef>
@@ -10,6 +11,14 @@ public class ParameterRef implements Comparable<ParameterRef>
     private final String desc;
     private final int index;
     private final String type;
+
+    public ParameterRef(final ExternalVanillaMapping mapping) {
+        this(mapping.getParentClassMapping(),
+          mapping.getParentMethodMapping(),
+          mapping.getParentMethodDescriptor(),
+          mapping.getIndex(),
+          mapping.getType());
+    }
 
     public ParameterRef(final MethodRef parent, final int index, final String type) {
         this(parent.getOwner(), parent.getName(), parent.getDesc(), index, type);

@@ -273,8 +273,13 @@ public class MappingToyJarMetaData {
                 return this.force == null ? "" : this.force;
             }
 
-            public String getOwner() {
+            public String getName() {
                 return this.name;
+            }
+
+            public String getDesc()
+            {
+                return desc;
             }
 
             @Override

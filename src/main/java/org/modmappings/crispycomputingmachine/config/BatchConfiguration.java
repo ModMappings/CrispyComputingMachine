@@ -1,9 +1,11 @@
 package org.modmappings.crispycomputingmachine.config;
 
+import org.springframework.batch.core.configuration.annotation.DefaultBatchConfigurer;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.SimpleJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.repository.support.JobRepositoryFactoryBean;
 import org.springframework.batch.core.repository.support.MapJobRepositoryFactoryBean;
 import org.springframework.batch.core.scope.StepScope;
 import org.springframework.batch.support.transaction.ResourcelessTransactionManager;
@@ -12,28 +14,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import javax.sql.DataSource;
+
 @Configuration
 @EnableBatchProcessing
-public class BatchConfiguration {
+public class BatchConfiguration extends DefaultBatchConfigurer
+{
 
-    @Bean
-    @Primary
-    public JobRepository jobRepository() {
-        MapJobRepositoryFactoryBean factoryBean = new MapJobRepositoryFactoryBean(new ResourcelessTransactionManager());
-        try {
-            return factoryBean.getObject();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+    protected BatchConfiguration()
+    {
+        super();
     }
 
-    @Bean
-    @Primary
-    public JobLauncher jobLauncher(JobRepository jobRepository) {
-        SimpleJobLauncher jobLauncher = new SimpleJobLauncher();
-        jobLauncher.setJobRepository(jobRepository);
-
-        return jobLauncher;
+    public BatchConfiguration(final DataSource dataSource)
+    {
+        super(null);
     }
 }

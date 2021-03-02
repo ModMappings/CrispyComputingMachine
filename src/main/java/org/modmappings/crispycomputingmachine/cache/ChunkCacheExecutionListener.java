@@ -8,39 +8,35 @@ import java.util.Collection;
 
 public class ChunkCacheExecutionListener implements ChunkListener {
 
-    private final AbstractMappingCacheManager remappingManager;
-    private final Collection<AbstractMappingCacheManager> mappingCacheManagers;
+    private final AbstractSimpleBasedCacheManager             remappingManager;
+    private final Collection<AbstractSimpleBasedCacheManager> mappingCacheManagers;
 
-    public ChunkCacheExecutionListener(final AbstractMappingCacheManager remappingManager, final AbstractMappingCacheManager... mappingCacheManager) {
+    public ChunkCacheExecutionListener(final AbstractSimpleBasedCacheManager remappingManager, final AbstractSimpleBasedCacheManager... mappingCacheManager) {
         this.remappingManager = remappingManager;
         this.mappingCacheManagers = Lists.newArrayList(mappingCacheManager);
     }
 
-    public AbstractMappingCacheManager getRemappingManager() {
+    public AbstractSimpleBasedCacheManager getRemappingManager() {
         return remappingManager;
     }
 
-    public Collection<AbstractMappingCacheManager> getMappingCacheManagers() {
+    public Collection<AbstractSimpleBasedCacheManager> getMappingCacheManagers() {
         return mappingCacheManagers;
     }
 
     @Override
     public void beforeChunk(final ChunkContext context) {
-        getRemappingManager().initializeCache();
-
-        getMappingCacheManagers().forEach(c -> c.setRemappingManager(getRemappingManager()));
-        getMappingCacheManagers().forEach(AbstractMappingCacheManager::initializeCache);
     }
 
     @Override
     public void afterChunk(final ChunkContext context) {
         getRemappingManager().destroyCache();
-        getMappingCacheManagers().forEach(AbstractMappingCacheManager::destroyCache);
+        getMappingCacheManagers().forEach(AbstractSimpleBasedCacheManager::destroyCache);
     }
 
     @Override
     public void afterChunkError(final ChunkContext context) {
         getRemappingManager().destroyCache();
-        getMappingCacheManagers().forEach(AbstractMappingCacheManager::destroyCache);
+        getMappingCacheManagers().forEach(AbstractSimpleBasedCacheManager::destroyCache);
     }
 }

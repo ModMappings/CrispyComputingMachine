@@ -6,13 +6,13 @@ import org.springframework.batch.item.*;
 import org.springframework.batch.repeat.RepeatContext;
 import org.springframework.batch.repeat.policy.SimpleCompletionPolicy;
 
-public class MTRespectingReaderAndCompletionPolicy<T extends ExternalMapping> extends SimpleCompletionPolicy implements ItemReader<T>, ItemStream {
+public class GameVersionRespectingPolicyReader<T extends ExternalMapping> extends SimpleCompletionPolicy implements ItemReader<T>, ItemStream {
 
     private final PeekableItemReader<T> delegate;
 
     private T currentReadItem = null;
 
-    public MTRespectingReaderAndCompletionPolicy(final PeekableItemReader<T> delegate) {
+    public GameVersionRespectingPolicyReader(final PeekableItemReader<T> delegate) {
         this.delegate = delegate;
     }
 
@@ -61,7 +61,7 @@ public class MTRespectingReaderAndCompletionPolicy<T extends ExternalMapping> ex
             }
 
             // logic to check if same country
-            return nextReadItem == null || currentReadItem.getMappableType() != nextReadItem.getMappableType();
+            return nextReadItem == null || !currentReadItem.getGameVersion().equals(nextReadItem.getGameVersion());
         }
     }
 }
