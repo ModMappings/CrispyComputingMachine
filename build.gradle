@@ -52,7 +52,6 @@ dependencies {
     implementation 'net.minecraftforge:srgutils:0.2.12'
 
     implementation 'org.springframework.boot:spring-boot-starter-batch'
-    implementation 'org.springframework.cloud:spring-cloud-starter-task'
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
 
